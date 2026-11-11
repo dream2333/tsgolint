@@ -1,28 +1,28 @@
-From bec3eec9fc40608fd2a8f519001909564e3145af Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Cameron Clark <cameron.clark@hey.com>
 Date: Mon, 3 Nov 2025 12:44:32 +0000
-Subject: [PATCH 3/5] fix: early return from invalid tsconfig for better errors
+Subject: [PATCH 3/6] fix: early return from invalid tsconfig for better errors
 
 ---
  tsc/internal/tsoptions/tsconfigparsing.go | 11 +++++++++++
  1 file changed, 11 insertions(+)
 
 diff --git a/tsc/internal/tsoptions/tsconfigparsing.go b/tsc/internal/tsoptions/tsconfigparsing.go
-index 6f4db55f300..598c582c144 100644
+index 35f5aa8fce..05578b38eb 100644
 --- a/tsc/internal/tsoptions/tsconfigparsing.go
 +++ b/tsc/internal/tsoptions/tsconfigparsing.go
-@@ -186,6 +186,17 @@ func parseOwnConfigOfJsonSourceFile(
- 	var extendedConfigPath any
+@@ -116,6 +116,17 @@ func parseOwnConfigOfJsonSourceFile(
+ 	var extendedConfigPaths []tspath.RootedFilePath
  	var rootCompilerOptions []*ast.PropertyName
  	var errors []*ast.Diagnostic
 +
 +	// If there are parsing errors, return only the first one
 +	if len(sourceFile.Diagnostics()) > 0 {
 +		return &parsedTsconfig{
-+			raw:                &collections.OrderedMap[string, any]{},
-+			options:            compilerOptions,
-+			typeAcquisition:    typeAcquisition,
-+			extendedConfigPath: extendedConfigPath,
++			raw:                 &collections.OrderedMap[string, any]{},
++			options:             compilerOptions,
++			typeAcquisition:     typeAcquisition,
++			extendedConfigPaths: extendedConfigPaths,
 +		}, []*ast.Diagnostic{sourceFile.Diagnostics()[0]}
 +	}
 +

@@ -1,6 +1,6 @@
 module github.com/typescript-eslint/tsgolint
 
-go 1.26
+go 1.27
 
 replace (
 	github.com/microsoft/TypeScript/tsc/shim/ast => ./shim/ast

@@ -1,23 +1,23 @@
-From 01f4f6040a976b06ae5be807140163e1dd8164fe Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Codex <codex@example.com>
 Date: Thu, 12 Feb 2026 13:55:47 +0900
-Subject: [PATCH 5/5] perf(vfs): cache ReadFile results in cachedvfs
+Subject: [PATCH 5/6] perf(vfs): cache ReadFile results in cachedvfs
 
 ---
- tsc/internal/vfs/cachedvfs/cachedvfs.go | 24 +++++++++++++++++++++++-
- 1 file changed, 23 insertions(+), 1 deletion(-)
+ tsc/internal/vfs/cachedvfs/cachedvfs.go | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
 
 diff --git a/tsc/internal/vfs/cachedvfs/cachedvfs.go b/tsc/internal/vfs/cachedvfs/cachedvfs.go
-index 7128d24d6bd..737c2a2c810 100644
+index a5c4c334ba..f8e93f6a29 100644
 --- a/tsc/internal/vfs/cachedvfs/cachedvfs.go
 +++ b/tsc/internal/vfs/cachedvfs/cachedvfs.go
-@@ -15,10 +15,16 @@ type FS struct {
- 	directoryExistsCache      collections.SyncMap[string, bool]
- 	fileExistsCache           collections.SyncMap[string, bool]
- 	getAccessibleEntriesCache collections.SyncMap[string, vfs.Entries]
-+	readFileCache             collections.SyncMap[string, readFileCacheEntry]
- 	realpathCache             collections.SyncMap[string, string]
- 	statCache                 collections.SyncMap[string, vfs.FileInfo]
+@@ -16,10 +16,16 @@ type FS struct {
+ 	directoryExistsCache      collections.SyncMap[tspath.RootedDirectoryPath, bool]
+ 	fileExistsCache           collections.SyncMap[tspath.RootedFilePath, bool]
+ 	getAccessibleEntriesCache collections.SyncMap[tspath.RootedDirectoryPath, vfs.Entries]
++	readFileCache             collections.SyncMap[tspath.RootedFilePath, readFileCacheEntry]
+ 	realpathCache             collections.SyncMap[tspath.RootedPath, tspath.RootedPath]
+ 	statCache                 collections.SyncMap[tspath.RootedPath, vfs.FileInfo]
  }
  
 +type readFileCacheEntry struct {
@@ -28,7 +28,7 @@ index 7128d24d6bd..737c2a2c810 100644
  var _ vfs.FS = (*FS)(nil)
  
  func From(fs vfs.FS) *FS {
-@@ -41,6 +47,7 @@ func (fsys *FS) ClearCache() {
+@@ -42,6 +48,7 @@ func (fsys *FS) ClearCache() {
  	fsys.directoryExistsCache.Clear()
  	fsys.fileExistsCache.Clear()
  	fsys.getAccessibleEntriesCache.Clear()
@@ -36,10 +36,10 @@ index 7128d24d6bd..737c2a2c810 100644
  	fsys.realpathCache.Clear()
  	fsys.statCache.Clear()
  }
-@@ -94,7 +101,22 @@ func (fsys *FS) GetAccessibleEntries(path string) vfs.Entries {
+@@ -95,7 +102,19 @@ func (fsys *FS) GetAccessibleEntries(path tspath.RootedDirectoryPath) vfs.Entrie
  }
  
- func (fsys *FS) ReadFile(path string) (contents string, ok bool) {
+ func (fsys *FS) ReadFile(path tspath.RootedFilePath) (contents string, ok bool) {
 -	return fsys.fs.ReadFile(path)
 +	if fsys.enabled.Load() {
 +		if ret, hit := fsys.readFileCache.Load(path); hit {
@@ -50,13 +50,10 @@ index 7128d24d6bd..737c2a2c810 100644
 +	contents, ok = fsys.fs.ReadFile(path)
 +
 +	if fsys.enabled.Load() {
-+		fsys.readFileCache.Store(path, readFileCacheEntry{
-+			contents: contents,
-+			ok:       ok,
-+		})
++		fsys.readFileCache.Store(path, readFileCacheEntry{contents: contents, ok: ok})
 +	}
 +
 +	return contents, ok
  }
  
- func (fsys *FS) Realpath(path string) string {
+ func (fsys *FS) Realpath(path tspath.RootedPath) tspath.RootedPath {

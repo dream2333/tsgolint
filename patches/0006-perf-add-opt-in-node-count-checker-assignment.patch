@@ -1,14 +1,14 @@
-From 9ac15424df212519656be08ee45b02d2b2901334 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: TSGolint experiment <tsgolint-experiment@localhost>
 Date: Thu, 24 Sep 2026 11:18:06 +0100
-Subject: [PATCH] perf: add opt-in node-count checker assignment
+Subject: [PATCH 6/6] perf: add opt-in node-count checker assignment
 
 ---
  tsc/internal/compiler/checkerpool.go | 15 ++++++++++++++-
  1 file changed, 14 insertions(+), 1 deletion(-)
 
 diff --git a/tsc/internal/compiler/checkerpool.go b/tsc/internal/compiler/checkerpool.go
-index c7961118a..1a906b9c8 100644
+index 00a0ce4360..9a0179b4b9 100644
 --- a/tsc/internal/compiler/checkerpool.go
 +++ b/tsc/internal/compiler/checkerpool.go
 @@ -1,8 +1,10 @@
@@ -22,7 +22,7 @@ index c7961118a..1a906b9c8 100644
  	"slices"
  	"sort"
  	"sync"
-@@ -376,6 +378,18 @@ func (p *checkerPool) createCheckers() {
+@@ -380,6 +382,18 @@ func (p *checkerPool) createCheckers() {
  
  		wg.RunAndWait()
  
@@ -41,7 +41,7 @@ index c7961118a..1a906b9c8 100644
  		associations := make([]int, len(p.program.files))
  		if checkerCount > 1 {
  			baseWeights := make([]int, len(p.program.files))
-@@ -408,7 +422,6 @@ func (p *checkerPool) createCheckers() {
+@@ -412,7 +426,6 @@ func (p *checkerPool) createCheckers() {
  			fileOrder := getCheckerAssociationOrder(fileWeights, isDeclarationFile, policy.prioritizeSourceFiles)
  			associations = getCheckerAssociationsInOrder(fileWeights, adjacentFiles, fileOrder, checkerCount, policy.balancePenaltyMultiplier)
  		}

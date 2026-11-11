@@ -1,14 +1,14 @@
-From ab7f71fcced7a59a30111046a15c56e6035b623b Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Cameron Clark <cameron.clark@hey.com>
 Date: Fri, 14 Nov 2025 11:09:52 +0000
-Subject: [PATCH 1/5] Adapt project service for single run mode
+Subject: [PATCH 1/6] Adapt project service for single run mode
 
 ---
  tsc/internal/project/project.go | 5 ++++-
  1 file changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/tsc/internal/project/project.go b/tsc/internal/project/project.go
-index 8f64ee33032..f5d74af116d 100644
+index 43083788fb..cafe6615d1 100644
 --- a/tsc/internal/project/project.go
 +++ b/tsc/internal/project/project.go
 @@ -3,6 +3,7 @@ package project
@@ -17,16 +17,16 @@ index 8f64ee33032..f5d74af116d 100644
  	"fmt"
 +	"runtime"
  	"slices"
+ 	"strconv"
  	"strings"
- 	"sync"
-@@ -376,7 +377,9 @@ func (p *Project) CreateProgram() CreateProgramResult {
- 	// the same project never share a captured variable through a stale closure
- 	// stored in the old program's options.
+@@ -532,7 +533,9 @@ func (p *Project) CreateProgram() CreateProgramResult {
+ 	var newProgram *compiler.Program
+ 
  	createCheckerPool := func(program *compiler.Program) compiler.CheckerPool {
 -		return newCheckerPool(p.host.sessionOptions.CheckerPoolOptions, program, p.log)
 +		opts := p.host.sessionOptions.CheckerPoolOptions
 +		opts.MaxCheckers = runtime.GOMAXPROCS(0)
 +		return newCheckerPool(opts, program, p.log)
  	}
- 
- 	// Create the command line, potentially augmented with typing files
+ 	var cleanupModuleResolver func()
+ 	createModuleResolver := func(options module.ResolverOptions) module.Resolver {

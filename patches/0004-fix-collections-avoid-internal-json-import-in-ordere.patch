@@ -1,7 +1,7 @@
-From 942322033cfd9362151ad005b4ea9f6283064e88 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Cameron Clark <cameron.clark@hey.com>
 Date: Fri, 13 Feb 2026 18:37:25 +0000
-Subject: [PATCH 4/5] fix(collections): avoid internal json import in
+Subject: [PATCH 4/6] fix(collections): avoid internal json import in
  ordered_map
 
 ---
@@ -9,7 +9,7 @@ Subject: [PATCH 4/5] fix(collections): avoid internal json import in
  1 file changed, 9 insertions(+), 8 deletions(-)
 
 diff --git a/tsc/internal/collections/ordered_map.go b/tsc/internal/collections/ordered_map.go
-index d4d84f3f8e9..02f0a567814 100644
+index d933ffa0e7..d6574c3cfd 100644
 --- a/tsc/internal/collections/ordered_map.go
 +++ b/tsc/internal/collections/ordered_map.go
 @@ -9,7 +9,8 @@ import (
@@ -17,12 +17,12 @@ index d4d84f3f8e9..02f0a567814 100644
  	"strconv"
  
 -	"github.com/microsoft/TypeScript/tsc/internal/json"
-+	"github.com/go-json-experiment/json"
-+	"github.com/go-json-experiment/json/jsontext"
++	"encoding/json/v2"
++	"encoding/json/jsontext"
  )
  
  // OrderedMap is an insertion ordered map.
-@@ -214,8 +215,8 @@ func (m *OrderedMap[K, V]) clone() OrderedMap[K, V] {
+@@ -227,8 +228,8 @@ func (m *OrderedMap[K, V]) EqualFunc(other *OrderedMap[K, V], equal func(V, V) b
  
  var _ json.MarshalerTo = (*OrderedMap[string, string])(nil)
  
@@ -33,7 +33,7 @@ index d4d84f3f8e9..02f0a567814 100644
  		return err
  	}
  
-@@ -235,7 +236,7 @@ func (m *OrderedMap[K, V]) MarshalJSONTo(enc *json.Encoder) error {
+@@ -248,7 +249,7 @@ func (m *OrderedMap[K, V]) MarshalJSONTo(enc *json.Encoder) error {
  		}
  	}
  
@@ -42,7 +42,7 @@ index d4d84f3f8e9..02f0a567814 100644
  }
  
  func resolveKeyName(k reflect.Value) (string, error) {
-@@ -260,22 +261,22 @@ func resolveKeyName(k reflect.Value) (string, error) {
+@@ -273,22 +274,22 @@ func resolveKeyName(k reflect.Value) (string, error) {
  
  var _ json.UnmarshalerFrom = (*OrderedMap[string, string])(nil)
  
