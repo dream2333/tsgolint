@@ -73,7 +73,7 @@ var NoUnnecessaryTypeConversionRule = rule.Rule{
 
 		isEnumMemberType := func(t *checker.Type) bool {
 			symbol := checker.Type_symbol(t)
-			return symbol != nil && symbol.Flags&ast.SymbolFlagsEnumMember != 0
+			return symbol != nil && symbol.Flags()&ast.SymbolFlagsEnumMember != 0
 		}
 
 		isAllNumberLiteralIntegers := func(t *checker.Type) bool {

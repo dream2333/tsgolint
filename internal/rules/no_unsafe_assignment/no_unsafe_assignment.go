@@ -181,7 +181,7 @@ var NoUnsafeAssignmentRule = rule.Rule{
 			}
 			properties := make(map[string]*checker.Type, len(propertySymbols))
 			for _, property := range propertySymbols {
-				properties[property.Name] = ctx.TypeChecker.GetTypeOfSymbolAtLocation(property, senderNode)
+				properties[property.Name()] = ctx.TypeChecker.GetTypeOfSymbolAtLocation(property, senderNode)
 			}
 
 			checkObjectProperty := func(propertyKey *ast.Node, propertyValue *ast.Node) bool {

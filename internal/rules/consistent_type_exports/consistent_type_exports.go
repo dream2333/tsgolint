@@ -50,15 +50,15 @@ func isSymbolTypeBased(typeChecker *checker.Checker, symbol *ast.Symbol) (bool, 
 	for symbol != nil && !visited[symbol] {
 		visited[symbol] = true
 
-		if slices.ContainsFunc(symbol.Declarations, ast.IsTypeOnlyImportOrExportDeclaration) {
+		if slices.ContainsFunc(symbol.Declarations(), ast.IsTypeOnlyImportOrExportDeclaration) {
 			return true, true
 		}
 
-		if symbol.Flags&ast.SymbolFlagsValue != 0 {
+		if symbol.Flags()&ast.SymbolFlagsValue != 0 {
 			return false, true
 		}
 
-		if symbol.Flags&ast.SymbolFlagsAlias != 0 {
+		if symbol.Flags()&ast.SymbolFlagsAlias != 0 {
 			next := checker.Checker_getImmediateAliasedSymbol(typeChecker, symbol)
 			if next == nil {
 				return false, false
@@ -180,7 +180,7 @@ var ConsistentTypeExportsRule = rule.Rule{
 			isThereAnyExportedValue := false
 
 			for _, propertyTypeSymbol := range checker.Checker_getPropertiesOfType(ctx.TypeChecker, sourceFileType) {
-				if checker.Checker_getPropertyOfType(ctx.TypeChecker, sourceFileType, propertyTypeSymbol.Name) != nil {
+				if checker.Checker_getPropertyOfType(ctx.TypeChecker, sourceFileType, propertyTypeSymbol.Name()) != nil {
 					isThereAnyExportedValue = true
 					break
 				}

@@ -301,7 +301,7 @@ func isBooleanConstructorContext(ctx rule.RuleContext, node *ast.Node) bool {
 			symbol := ctx.TypeChecker.GetSymbolAtLocation(callExpr.Expression)
 			if symbol != nil {
 				// Check if this is the global Boolean (no user-defined declarations in source files)
-				for _, decl := range symbol.Declarations {
+				for _, decl := range symbol.Declarations() {
 					sf := ast.GetSourceFileOfNode(decl)
 					if sf != nil && !sf.IsDeclarationFile {
 						return false // User-defined Boolean

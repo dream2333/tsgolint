@@ -150,11 +150,11 @@ var NoMisusedPromisesRule = rule.Rule{
 			if symbol == nil {
 				return nil
 			}
-			declarations := make([]*ast.Node, 0, len(symbol.Declarations)+1)
-			if symbol.ValueDeclaration != nil {
-				declarations = append(declarations, symbol.ValueDeclaration)
+			declarations := make([]*ast.Node, 0, len(symbol.Declarations())+1)
+			if symbol.ValueDeclaration() != nil {
+				declarations = append(declarations, symbol.ValueDeclaration())
 			}
-			declarations = append(declarations, symbol.Declarations...)
+			declarations = append(declarations, symbol.Declarations()...)
 			for _, declaration := range declarations {
 				if expectation := localExpectationForDeclaration(declaration, t); expectation != nil {
 					return expectation
@@ -351,7 +351,7 @@ var NoMisusedPromisesRule = rule.Rule{
 			// const escapedMemberName = ts.escapeLeadingUnderscores(memberName);
 			symbol := checker.Type_symbol(t)
 			if symbol != nil {
-				symbol = symbol.Members[memberName]
+				symbol = symbol.Members().Get(memberName)
 			}
 			if symbol != nil {
 				return symbol
@@ -539,7 +539,7 @@ var NoMisusedPromisesRule = rule.Rule{
 				}
 				for _, signature := range signatures {
 					for index, parameter := range checker.Signature_parameters(signature) {
-						parameterDeclaration := parameter.ValueDeclaration
+						parameterDeclaration := parameter.ValueDeclaration()
 						t := ctx.TypeChecker.GetTypeOfSymbolAtLocation(parameter, node.Expression())
 
 						// If this is a array 'rest' parameter, check all of the argument indices

@@ -52,7 +52,7 @@ func isTypeReadonlyArrayOrTuple(
 
 	if checker.Checker_isArrayType(typeChecker, t) {
 		symbol := checker.Type_symbol(t)
-		if symbol != nil && symbol.Name == "Array" {
+		if symbol != nil && symbol.Name() == "Array" {
 			return readonlynessMutable
 		}
 
@@ -84,12 +84,12 @@ func propertyHasPrivateIdentifierName(property *ast.Symbol) bool {
 		return false
 	}
 
-	if property.ValueDeclaration != nil {
-		name := property.ValueDeclaration.Name()
+	if property.ValueDeclaration() != nil {
+		name := property.ValueDeclaration().Name()
 		return name != nil && name.Kind == ast.KindPrivateIdentifier
 	}
 
-	for _, declaration := range property.Declarations {
+	for _, declaration := range property.Declarations() {
 		if declaration == nil {
 			continue
 		}
@@ -104,7 +104,7 @@ func propertyHasPrivateIdentifierName(property *ast.Symbol) bool {
 
 func propertyIsPrivateMappedProperty(property *ast.Symbol) bool {
 	return property != nil &&
-		property.CheckFlags&ast.CheckFlagsMapped != 0 &&
+		property.CheckFlags()&ast.CheckFlagsMapped != 0 &&
 		checker.GetDeclarationModifierFlagsFromSymbol(property)&ast.ModifierFlagsPrivate != 0
 }
 
@@ -117,19 +117,19 @@ func propertyIsReadonly(typeChecker *checker.Checker, property *ast.Symbol) bool
 		return true
 	}
 
-	if property.CheckFlags&ast.CheckFlagsReadonly != 0 {
+	if property.CheckFlags()&ast.CheckFlagsReadonly != 0 {
 		return true
 	}
 
-	if property.CheckFlags&ast.CheckFlagsSyntheticMethod != 0 {
+	if property.CheckFlags()&ast.CheckFlagsSyntheticMethod != 0 {
 		return true
 	}
 
-	if property.Flags&ast.SymbolFlagsMethod != 0 && property.CheckFlags&ast.CheckFlagsMapped != 0 {
+	if property.Flags()&ast.SymbolFlagsMethod != 0 && property.CheckFlags()&ast.CheckFlagsMapped != 0 {
 		return true
 	}
 
-	if property.ValueDeclaration == nil && property.CheckFlags&ast.CheckFlagsMapped != 0 {
+	if property.ValueDeclaration() == nil && property.CheckFlags()&ast.CheckFlagsMapped != 0 {
 		return true
 	}
 
@@ -145,7 +145,7 @@ func isTypeReadonlyObject(
 ) readonlyness {
 	properties := checker.Checker_getPropertiesOfType(typeChecker, t)
 	for _, property := range properties {
-		if opts.treatMethodsAsReadonly && property.Flags&ast.SymbolFlagsMethod != 0 {
+		if opts.treatMethodsAsReadonly && property.Flags()&ast.SymbolFlagsMethod != 0 {
 			continue
 		}
 
@@ -166,7 +166,7 @@ func isTypeReadonlyObject(
 	}
 
 	for _, property := range properties {
-		if property.Flags&ast.SymbolFlagsMethod != 0 {
+		if property.Flags()&ast.SymbolFlagsMethod != 0 {
 			continue
 		}
 
@@ -178,7 +178,7 @@ func isTypeReadonlyObject(
 			continue
 		}
 
-		propertyType := checker.Checker_getTypeOfPropertyOfType(typeChecker, t, property.Name)
+		propertyType := checker.Checker_getTypeOfPropertyOfType(typeChecker, t, property.Name())
 		if propertyType == nil {
 			propertyType = checker.Checker_getTypeOfSymbol(typeChecker, property)
 		}

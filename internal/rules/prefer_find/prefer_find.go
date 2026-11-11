@@ -215,15 +215,15 @@ var PreferFindRule = rule.Rule{
 		}
 
 		getConstInitializer := func(symbol *ast.Symbol) (*ast.Node, bool) {
-			if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) {
+			if symbol == nil || symbol.ValueDeclaration() == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration()) {
 				return nil, false
 			}
 
-			if !ast.IsVariableDeclarationList(symbol.ValueDeclaration.Parent) || symbol.ValueDeclaration.Parent.Flags&ast.NodeFlagsConst == 0 {
+			if !ast.IsVariableDeclarationList(symbol.ValueDeclaration().Parent) || symbol.ValueDeclaration().Parent.Flags&ast.NodeFlagsConst == 0 {
 				return nil, false
 			}
 
-			declaration := symbol.ValueDeclaration.AsVariableDeclaration()
+			declaration := symbol.ValueDeclaration().AsVariableDeclaration()
 			if declaration.Initializer == nil {
 				return nil, false
 			}

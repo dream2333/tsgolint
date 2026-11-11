@@ -282,7 +282,7 @@ var NoBaseToStringRule = rule.Rule{
 						continue
 					}
 
-					declarations := property.Declarations
+					declarations := property.Declarations()
 					if len(declarations) == 0 {
 						continue
 					}

@@ -136,7 +136,7 @@ var NoDeprecatedRule = rule.Rule{
 				return false, ""
 			}
 
-			for _, decl := range symbol.Declarations {
+			for _, decl := range symbol.Declarations() {
 				if checker.Checker_IsDeprecatedDeclaration(ctx.TypeChecker, decl) {
 					reason := getJsDocDeprecationFromNode(decl)
 					return true, reason
@@ -227,8 +227,8 @@ var NoDeprecatedRule = rule.Rule{
 
 			// For property-like signatures, check the symbol itself first
 			var symbolDeclarationKind ast.Kind
-			if aliasedSymbol != nil && len(aliasedSymbol.Declarations) > 0 {
-				symbolDeclarationKind = aliasedSymbol.Declarations[0].Kind
+			if aliasedSymbol != nil && len(aliasedSymbol.Declarations()) > 0 {
+				symbolDeclarationKind = aliasedSymbol.Declarations()[0].Kind
 			}
 
 			// Properties with function-like types have @deprecated on their symbols, not signatures
@@ -536,8 +536,8 @@ var NoDeprecatedRule = rule.Rule{
 							}
 
 							// Check shorthand assignment value symbol
-							if propertySymbol != nil && propertySymbol.ValueDeclaration != nil {
-								valueSymbol := checker.Checker_GetShorthandAssignmentValueSymbol(ctx.TypeChecker, propertySymbol.ValueDeclaration)
+							if propertySymbol != nil && propertySymbol.ValueDeclaration() != nil {
+								valueSymbol := checker.Checker_GetShorthandAssignmentValueSymbol(ctx.TypeChecker, propertySymbol.ValueDeclaration())
 								isDeprecated, reason = getJsDocDeprecation(valueSymbol)
 								if isDeprecated {
 									return true, reason
@@ -573,8 +573,8 @@ var NoDeprecatedRule = rule.Rule{
 						}
 
 						// Check shorthand assignment value symbol
-						if propertySymbol != nil && propertySymbol.ValueDeclaration != nil {
-							valueSymbol := checker.Checker_GetShorthandAssignmentValueSymbol(ctx.TypeChecker, propertySymbol.ValueDeclaration)
+						if propertySymbol != nil && propertySymbol.ValueDeclaration() != nil {
+							valueSymbol := checker.Checker_GetShorthandAssignmentValueSymbol(ctx.TypeChecker, propertySymbol.ValueDeclaration())
 							isDeprecated, reason = searchForDeprecationInAliasesChain(valueSymbol, true)
 							if isDeprecated {
 								return true, reason

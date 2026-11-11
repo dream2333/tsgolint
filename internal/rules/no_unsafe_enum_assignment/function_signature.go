@@ -23,7 +23,7 @@ func newFunctionSignature(c *enumTypeChecker, node *ast.Node) *functionSignature
 	for i, parameter := range checker.Signature_parameters(signature) {
 		t := c.checker.GetTypeOfSymbolAtLocation(parameter, node)
 		constrained := c.constraint(t)
-		if len(parameter.Declarations) > 0 && utils.IsRestParameterDeclaration(parameter.Declarations[0]) {
+		if len(parameter.Declarations()) > 0 && utils.IsRestParameterDeclaration(parameter.Declarations()[0]) {
 			result.restIndex = i
 			if checker.IsTupleType(constrained) {
 				result.rest = c.typeArguments(constrained)

@@ -110,7 +110,7 @@ func getSwitchMetadata(sourceFile *ast.SourceFile, typeChecker *checker.Checker,
 	defaultCaseIndex := slices.IndexFunc(cases, ast.IsDefaultClause)
 	var defaultCase *ast.CaseOrDefaultClause
 	if defaultCaseIndex > -1 {
-		defaultCase = cases[defaultCaseIndex].AsCaseOrDefaultClause()
+		defaultCase = cases[defaultCaseIndex]
 	}
 	var defaultCaseComment *ast.CommentRange
 	if defaultCase == nil {
@@ -120,7 +120,7 @@ func getSwitchMetadata(sourceFile *ast.SourceFile, typeChecker *checker.Checker,
 	discriminantType := utils.GetConstrainedTypeAtLocation(typeChecker, node.Expression)
 	symbolName := ""
 	if discriminantType.Symbol() != nil {
-		symbolName = discriminantType.Symbol().Name
+		symbolName = discriminantType.Symbol().Name()
 	}
 
 	caseTypeSet := make(map[*checker.Type]struct{}, len(cases))
@@ -130,7 +130,7 @@ func getSwitchMetadata(sourceFile *ast.SourceFile, typeChecker *checker.Checker,
 			continue
 		}
 
-		caseType := utils.GetConstrainedTypeAtLocation(typeChecker, c.AsCaseOrDefaultClause().Expression)
+		caseType := utils.GetConstrainedTypeAtLocation(typeChecker, c.AsCaseClause().Expression)
 		caseTypeSet[caseType] = struct{}{}
 		if utils.IsTypeFlagSet(caseType, checker.TypeFlagsUndefined) {
 			hasUndefinedCase = true
@@ -181,7 +181,7 @@ func getNodeIndent(sourceFile *ast.SourceFile, node *ast.Node) string {
 func buildCaseTest(typeChecker *checker.Checker, missingBranchType *checker.Type, symbolName string) string {
 	missingBranchName := ""
 	if missingBranchType.Symbol() != nil {
-		missingBranchName = missingBranchType.Symbol().Name
+		missingBranchName = missingBranchType.Symbol().Name()
 	}
 
 	caseTest := ""
@@ -250,7 +250,7 @@ func applyMissingCases(sourceFile *ast.SourceFile, node *ast.SwitchStatement, de
 			}
 
 			return []rule.RuleFix{
-				rule.RuleFixInsertBefore(sourceFile, &defaultCase.Node, beforeFixBuilder.String()),
+				rule.RuleFixInsertBefore(sourceFile, defaultCase, beforeFixBuilder.String()),
 			}
 		}
 
@@ -295,7 +295,7 @@ var SwitchExhaustivenessCheckRule = rule.Rule{
 				missingBranches := make([]string, 0, len(switchMetadata.MissingLiteralBranchTypes))
 				for _, missingType := range switchMetadata.MissingLiteralBranchTypes {
 					if utils.IsTypeFlagSet(missingType, checker.TypeFlagsESSymbolLike) && missingType.Symbol() != nil {
-						missingBranches = append(missingBranches, "typeof "+missingType.Symbol().Name)
+						missingBranches = append(missingBranches, "typeof "+missingType.Symbol().Name())
 						continue
 					}
 
@@ -322,7 +322,7 @@ var SwitchExhaustivenessCheckRule = rule.Rule{
 				if switchMetadata.DefaultCaseComment != nil {
 					ctx.ReportRange(switchMetadata.DefaultCaseComment.TextRange, buildDangerousDefaultCaseMessage())
 				} else {
-					ctx.ReportNode(&switchMetadata.DefaultCase.Node, buildDangerousDefaultCaseMessage())
+					ctx.ReportNode(switchMetadata.DefaultCase, buildDangerousDefaultCaseMessage())
 				}
 			}
 		}

@@ -201,8 +201,8 @@ var StrictVoidReturnRule = rule.Rule{
 				return ""
 			}
 
-			if symbol := ctx.TypeChecker.GetSymbolAtLocation(nameNode); symbol != nil && symbol.Name != "" {
-				return symbol.Name
+			if symbol := ctx.TypeChecker.GetSymbolAtLocation(nameNode); symbol != nil && symbol.Name() != "" {
+				return symbol.Name()
 			}
 
 			switch nameNode.Kind {
@@ -245,7 +245,7 @@ var StrictVoidReturnRule = rule.Rule{
 			for _, heritageClause := range heritageClauses.Nodes {
 				for _, heritageTypeNode := range heritageClause.AsHeritageClause().Types.Nodes {
 					heritageType := ctx.TypeChecker.GetTypeAtLocation(heritageTypeNode)
-					heritageMember := checker.Checker_getPropertyOfType(ctx.TypeChecker, heritageType, memberSymbol.Name)
+					heritageMember := checker.Checker_getPropertyOfType(ctx.TypeChecker, heritageType, memberSymbol.Name())
 					if heritageMember == nil {
 						continue
 					}

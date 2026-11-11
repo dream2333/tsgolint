@@ -148,11 +148,11 @@ var PreferIncludesRule = rule.Rule{
 			}
 
 			symbol := ctx.TypeChecker.GetSymbolAtLocation(node)
-			if symbol == nil || symbol.ValueDeclaration == nil {
+			if symbol == nil || symbol.ValueDeclaration() == nil {
 				return ""
 			}
 
-			valueDecl := symbol.ValueDeclaration
+			valueDecl := symbol.ValueDeclaration()
 			if valueDecl.Kind != ast.KindVariableDeclaration {
 				return ""
 			}
@@ -228,12 +228,12 @@ var PreferIncludesRule = rule.Rule{
 		// Verifies that for every indexOf declaration, there exists an includes
 		// declaration on the same type with matching parameters
 		indexOfHasCompatibleIncludes := func(indexOfSymbol *ast.Symbol) bool {
-			if indexOfSymbol == nil || len(indexOfSymbol.Declarations) == 0 {
+			if indexOfSymbol == nil || len(indexOfSymbol.Declarations()) == 0 {
 				return false
 			}
 
 			// Check every declaration of indexOf to ensure it has a compatible includes
-			for _, indexOfDecl := range indexOfSymbol.Declarations {
+			for _, indexOfDecl := range indexOfSymbol.Declarations() {
 				// Get the type that contains this indexOf declaration
 				typeDecl := indexOfDecl.Parent
 				if typeDecl == nil {
@@ -248,13 +248,13 @@ var PreferIncludesRule = rule.Rule{
 
 				// Check if this type has an includes method
 				includesSymbol := checker.Checker_getPropertyOfType(ctx.TypeChecker, t, "includes")
-				if includesSymbol == nil || includesSymbol.Declarations == nil {
+				if includesSymbol == nil || includesSymbol.Declarations() == nil {
 					return false
 				}
 
 				// Check if any includes declaration has the same parameters as this indexOf
 				hasMatchingIncludes := false
-				for _, includesDecl := range includesSymbol.Declarations {
+				for _, includesDecl := range includesSymbol.Declarations() {
 					if hasSameParameters(indexOfDecl, includesDecl) {
 						hasMatchingIncludes = true
 						break
@@ -361,7 +361,7 @@ var PreferIncludesRule = rule.Rule{
 				}
 
 				includesSymbol := checker.Checker_getPropertyOfType(ctx.TypeChecker, argType, "includes")
-				if includesSymbol == nil || includesSymbol.Declarations == nil {
+				if includesSymbol == nil || includesSymbol.Declarations() == nil {
 					return
 				}
 

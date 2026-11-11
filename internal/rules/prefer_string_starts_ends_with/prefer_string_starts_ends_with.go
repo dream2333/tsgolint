@@ -193,10 +193,10 @@ var PreferStringStartsEndsWithRule = rule.Rule{
 
 			if ast.IsIdentifier(node) {
 				symbol := ctx.TypeChecker.GetSymbolAtLocation(node)
-				if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) {
+				if symbol == nil || symbol.ValueDeclaration() == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration()) {
 					return "", false
 				}
-				decl := symbol.ValueDeclaration.AsVariableDeclaration()
+				decl := symbol.ValueDeclaration().AsVariableDeclaration()
 				if decl.Initializer == nil {
 					return "", false
 				}
@@ -228,10 +228,10 @@ var PreferStringStartsEndsWithRule = rule.Rule{
 			}
 			if ast.IsIdentifier(node) {
 				symbol := ctx.TypeChecker.GetSymbolAtLocation(node)
-				if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) {
+				if symbol == nil || symbol.ValueDeclaration() == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration()) {
 					return nullishKindUnknown
 				}
-				decl := symbol.ValueDeclaration.AsVariableDeclaration()
+				decl := symbol.ValueDeclaration().AsVariableDeclaration()
 				if decl.Initializer == nil {
 					return nullishKindUnknown
 				}
@@ -423,10 +423,10 @@ var PreferStringStartsEndsWithRule = rule.Rule{
 				}
 			case ast.IsIdentifier(node):
 				symbol := ctx.TypeChecker.GetSymbolAtLocation(node)
-				if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration) {
+				if symbol == nil || symbol.ValueDeclaration() == nil || !ast.IsVariableDeclaration(symbol.ValueDeclaration()) {
 					return nil, false
 				}
-				decl := symbol.ValueDeclaration.AsVariableDeclaration()
+				decl := symbol.ValueDeclaration().AsVariableDeclaration()
 				if decl.Initializer == nil {
 					return nil, false
 				}

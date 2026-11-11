@@ -135,7 +135,7 @@ func isSafeUse(node *ast.Node) bool {
 }
 
 func isNotImported(symbol *ast.Symbol, currentSourceFile *ast.SourceFile) bool {
-	decl := symbol.ValueDeclaration
+	decl := symbol.ValueDeclaration()
 	if decl == nil {
 		// working around https://github.com/microsoft/TypeScript/issues/31294
 		return false
@@ -172,7 +172,7 @@ func checkMethod(valueDeclaration *ast.Node, ignoreStatic bool) ( /* dangerous *
 }
 
 func checkIfMethod(symbol *ast.Symbol, ignoreStatic bool) ( /* dangerous */ bool /* firstParamIsThis */, bool) {
-	valueDeclaration := symbol.ValueDeclaration
+	valueDeclaration := symbol.ValueDeclaration()
 	if valueDeclaration == nil {
 		// working around https://github.com/microsoft/TypeScript/issues/31294
 		return false, false
@@ -207,10 +207,10 @@ var UnboundMethodRule = rule.Rule{
 				return false
 			}
 			symbol := checker.Checker_getPropertyOfType(ctx.TypeChecker, objectType, property.Text())
-			if symbol == nil || len(symbol.Declarations) == 0 {
+			if symbol == nil || len(symbol.Declarations()) == 0 {
 				return false
 			}
-			for _, declaration := range symbol.Declarations {
+			for _, declaration := range symbol.Declarations() {
 				owner := declaration.Parent
 				if owner == nil || !ast.IsInterfaceDeclaration(owner) || owner.Name().Text() != "Collator" || !utils.IsSourceFileDefaultLibrary(ctx.Program, ast.GetSourceFileOfNode(declaration)) {
 					return false

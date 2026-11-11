@@ -53,7 +53,7 @@ var NoUnnecessaryTypeArgumentsRule = rule.Rule{
 				return nil
 			}
 
-			if symbol.Flags&ast.SymbolFlagsAlias != 0 {
+			if symbol.Flags()&ast.SymbolFlagsAlias != 0 {
 				var found bool
 				symbol, found = ctx.TypeChecker.ResolveAlias(symbol)
 				if !found {
@@ -61,11 +61,11 @@ var NoUnnecessaryTypeArgumentsRule = rule.Rule{
 				}
 			}
 
-			if symbol.Declarations == nil {
+			if symbol.Declarations() == nil {
 				return nil
 			}
 
-			declarations := slices.Clone(symbol.Declarations)
+			declarations := slices.Clone(symbol.Declarations())
 
 			nodeInTypeContext := isInTypeContext(node)
 			slices.SortFunc(declarations, func(a *ast.Node, b *ast.Node) int {

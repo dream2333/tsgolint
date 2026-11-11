@@ -40,7 +40,7 @@ var NoUnnecessaryQualifierRule = rule.Rule{
 				return false
 			}
 
-			for _, declaration := range symbol.Declarations {
+			for _, declaration := range symbol.Declarations() {
 				if slices.Contains(namespacesInScope, declaration) {
 					return true
 				}
@@ -56,7 +56,7 @@ var NoUnnecessaryQualifierRule = rule.Rule{
 		getSymbolInScope := func(node *ast.Node, flags ast.SymbolFlags, name string) *ast.Symbol {
 			scopeSymbols := ctx.TypeChecker.GetSymbolsInScope(node, flags)
 			for _, scopeSymbol := range scopeSymbols {
-				if scopeSymbol.Name == name {
+				if scopeSymbol.Name() == name {
 					return scopeSymbol
 				}
 			}
@@ -81,7 +81,7 @@ var NoUnnecessaryQualifierRule = rule.Rule{
 				return false
 			}
 
-			inScopeSymbol := getSymbolInScope(qualifier, accessedSymbol.Flags, name.Text())
+			inScopeSymbol := getSymbolInScope(qualifier, accessedSymbol.Flags(), name.Text())
 			return inScopeSymbol != nil && symbolsAreEqual(accessedSymbol, inScopeSymbol)
 		}
 

@@ -165,7 +165,7 @@ func isInNarrowingAssignment(ctx rule.RuleContext, node *ast.Node, uncastType, c
 					if ast.IsSpreadAssignment(property) {
 						spreadType := ctx.TypeChecker.GetTypeAtLocation(property.Expression())
 						overwriting := checker.Checker_getPropertyOfType(ctx.TypeChecker, spreadType, propertyPath[len(propertyPath)-1])
-						if overwriting != nil && overwriting.Flags&ast.SymbolFlagsOptional == 0 && overwriting.CheckFlags&ast.CheckFlagsPartial == 0 &&
+						if overwriting != nil && overwriting.Flags()&ast.SymbolFlagsOptional == 0 && overwriting.CheckFlags()&ast.CheckFlagsPartial == 0 &&
 							checker.GetDeclarationModifierFlagsFromSymbol(overwriting)&(ast.ModifierFlagsPrivate|ast.ModifierFlagsProtected) == 0 &&
 							checker.Checker_isSpreadableProperty(ctx.TypeChecker, overwriting) {
 							return false

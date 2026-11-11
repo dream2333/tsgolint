@@ -155,7 +155,7 @@ func isSimpleTypeForMessage(t *checker.Type) bool {
 	}
 
 	symbol := checker.Type_symbol(t)
-	return symbol != nil && symbol.Name != ""
+	return symbol != nil && symbol.Name() != ""
 }
 
 func getPluralAssignmentType(assignmentType string) string {
@@ -459,7 +459,7 @@ var NoUselessDefaultAssignmentRule = rule.Rule{
 				return
 			}
 
-			if paramSymbol.ValueDeclaration != nil && ast.IsParameterDeclaration(paramSymbol.ValueDeclaration) && paramSymbol.ValueDeclaration.AsParameterDeclaration().DotDotDotToken != nil {
+			if paramSymbol.ValueDeclaration() != nil && ast.IsParameterDeclaration(paramSymbol.ValueDeclaration()) && paramSymbol.ValueDeclaration().AsParameterDeclaration().DotDotDotToken != nil {
 				return
 			}
 

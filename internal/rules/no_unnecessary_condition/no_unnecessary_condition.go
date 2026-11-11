@@ -750,9 +750,9 @@ var NoUnnecessaryConditionRule = rule.Rule{
 					// This is a mapped type - get all its properties
 					properties := checker.Checker_getPropertiesOfType(ctx.TypeChecker, nonNullishBase)
 					for _, p := range properties {
-						if p.Name == propName {
+						if p.Name() == propName {
 							// Found the property - check if it's optional
-							if p.Flags&ast.SymbolFlagsOptional == 0 {
+							if p.Flags()&ast.SymbolFlagsOptional == 0 {
 								// Non-optional property - use its type
 								return ctx.TypeChecker.GetTypeOfSymbol(p)
 							}
@@ -1408,13 +1408,13 @@ var NoUnnecessaryConditionRule = rule.Rule{
 				}
 				if propSymbol == nil {
 					for _, prop := range checker.Checker_getPropertiesOfType(ctx.TypeChecker, baseType) {
-						if prop.Name == propName {
+						if prop.Name() == propName {
 							propSymbol = prop
 							break
 						}
 					}
 				}
-				return propSymbol != nil && propSymbol.Flags&ast.SymbolFlagsOptional != 0
+				return propSymbol != nil && propSymbol.Flags()&ast.SymbolFlagsOptional != 0
 
 			case ast.KindElementAccessExpression:
 				return isNullableElementAccessExpression(node.AsElementAccessExpression())
@@ -2258,7 +2258,7 @@ func checkPredicateFunction(ctx rule.RuleContext, funcNode *ast.Node, checkTypeG
 									// If so, the type guard is unnecessary
 									if checker.Checker_isTypeAssignableTo(ctx.TypeChecker, paramType, predicateType) {
 										primaryRange := utils.TrimNodeTextRange(ctx.SourceFile, funcNode)
-										if declaration := param.ValueDeclaration; declaration != nil && ast.GetSourceFileOfNode(declaration) == ctx.SourceFile {
+										if declaration := param.ValueDeclaration(); declaration != nil && ast.GetSourceFileOfNode(declaration) == ctx.SourceFile {
 											primaryRange = utils.TrimNodeTextRange(ctx.SourceFile, declaration)
 										}
 										ctx.ReportDiagnostic(buildTypeGuardDiagnostic(

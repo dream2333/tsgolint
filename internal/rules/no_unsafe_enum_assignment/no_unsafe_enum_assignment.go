@@ -325,7 +325,7 @@ var NoUnsafeEnumAssignmentRule = rule.Rule{
 					return
 				}
 				var receivers []*checker.Type
-				for _, declaration := range symbol.Declarations {
+				for _, declaration := range symbol.Declarations() {
 					receivers = append(receivers, mappedKeyConstraintTypes(ctx.TypeChecker, declaration)...)
 				}
 				if len(receivers) == 0 {

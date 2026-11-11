@@ -97,7 +97,7 @@ func enumQualifierFromType(typeChecker *checker.Checker, atNode *ast.Node, enumT
 
 	enumSymbol := typeChecker.GetSymbolAtLocation(enumDeclaration.AsEnumDeclaration().Name())
 	for _, scopeSymbol := range typeChecker.GetSymbolsInScope(atNode, ast.SymbolFlagsValue) {
-		if scopeSymbol.Name == qualifier && symbolMatchesEnum(typeChecker, scopeSymbol, enumSymbol) {
+		if scopeSymbol.Name() == qualifier && symbolMatchesEnum(typeChecker, scopeSymbol, enumSymbol) {
 			return qualifier
 		}
 	}
@@ -143,7 +143,7 @@ func symbolMatchesEnumDeclaration(typeChecker *checker.Checker, symbol *ast.Symb
 		symbol = typeChecker.GetAliasedSymbol(symbol)
 	}
 	symbol = typeChecker.GetExportSymbolOfSymbol(symbol)
-	return symbol != nil && symbol.ValueDeclaration != nil && ast.IsEnumMember(symbol.ValueDeclaration) && symbol.ValueDeclaration.Parent == enumDeclaration
+	return symbol != nil && symbol.ValueDeclaration() != nil && ast.IsEnumMember(symbol.ValueDeclaration()) && symbol.ValueDeclaration().Parent == enumDeclaration
 }
 
 func enumQualifierFromMemberAccess(sourceFile *ast.SourceFile, typeChecker *checker.Checker, node *ast.Node, enumDeclaration *ast.Node) string {
@@ -178,21 +178,21 @@ func enumQualifierFromMemberAccess(sourceFile *ast.SourceFile, typeChecker *chec
 func getEnumKeyForLiteral(sourceFile *ast.SourceFile, typeChecker *checker.Checker, atNode *ast.Node, enumSideNode *ast.Node, enumLiterals []*checker.Type, value staticValue) string {
 	for _, enumLiteral := range enumLiterals {
 		symbol := checker.Type_symbol(enumLiteral)
-		if symbol == nil || symbol.ValueDeclaration == nil || !ast.IsEnumMember(symbol.ValueDeclaration) {
+		if symbol == nil || symbol.ValueDeclaration() == nil || !ast.IsEnumMember(symbol.ValueDeclaration()) {
 			continue
 		}
 
-		enumValue := typeChecker.GetConstantValue(symbol.ValueDeclaration)
+		enumValue := typeChecker.GetConstantValue(symbol.ValueDeclaration())
 		if !enumValueMatchesStaticValue(enumValue, value) {
 			continue
 		}
 
-		suffix := enumMemberSuffixText(sourceFile, symbol.ValueDeclaration)
+		suffix := enumMemberSuffixText(sourceFile, symbol.ValueDeclaration())
 		if suffix == "" {
 			continue
 		}
 
-		enumDeclaration := symbol.ValueDeclaration.Parent
+		enumDeclaration := symbol.ValueDeclaration().Parent
 		qualifier := enumQualifierFromMemberAccess(sourceFile, typeChecker, enumSideNode, enumDeclaration)
 		if qualifier == "" {
 			qualifier = enumQualifierFromType(typeChecker, atNode, typeChecker.GetTypeAtLocation(enumDeclaration), enumDeclaration)

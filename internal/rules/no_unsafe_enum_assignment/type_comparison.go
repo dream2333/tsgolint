@@ -100,7 +100,7 @@ func (c *enumTypeChecker) deepMismatch(sender, receiver *checker.Type, visited m
 		return true
 	}
 	for _, receiverProperty := range checker.Checker_getPropertiesOfType(c.checker, receiver) {
-		senderProperty := checker.Checker_getPropertyOfType(c.checker, sender, receiverProperty.Name)
+		senderProperty := checker.Checker_getPropertyOfType(c.checker, sender, receiverProperty.Name())
 		if senderProperty != nil && c.deepMismatch(checker.Checker_getTypeOfSymbol(c.checker, senderProperty), checker.Checker_getTypeOfSymbol(c.checker, receiverProperty), visited, depth+1, generic || withinGenericMembers) {
 			return true
 		}
@@ -201,7 +201,7 @@ func mappedKeyConstraintTypes(typeChecker *checker.Checker, declaration *ast.Nod
 		t := checker.Checker_getTypeFromTypeNode(typeChecker, typeNode)
 		if utils.IsObjectType(t) && checker.Type_objectFlags(t)&checker.ObjectFlagsMapped != 0 {
 			if symbol := checker.Type_symbol(t); symbol != nil {
-				for _, declaration := range symbol.Declarations {
+				for _, declaration := range symbol.Declarations() {
 					if ast.IsMappedTypeNode(declaration) && declaration.AsMappedTypeNode().NameType != nil {
 						return nil
 					}

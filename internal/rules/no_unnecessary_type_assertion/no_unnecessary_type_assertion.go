@@ -255,11 +255,11 @@ var NoUnnecessaryTypeAssertionRule = rule.Rule{
 
 			castPropsByName := make(map[string]*ast.Symbol, len(castProps))
 			for _, prop := range castProps {
-				castPropsByName[prop.Name] = prop
+				castPropsByName[prop.Name()] = prop
 			}
 
 			for _, prop := range uncastProps {
-				castProp := castPropsByName[prop.Name]
+				castProp := castPropsByName[prop.Name()]
 				if castProp == nil ||
 					checker.Checker_isReadonlySymbol(ctx.TypeChecker, prop) != checker.Checker_isReadonlySymbol(ctx.TypeChecker, castProp) {
 					return false
@@ -583,7 +583,7 @@ var NoUnnecessaryTypeAssertionRule = rule.Rule{
 			}
 			param := params[paramIndex]
 			paramType := checker.Checker_getTypeOfSymbol(ctx.TypeChecker, param)
-			if valueDeclaration := param.ValueDeclaration; valueDeclaration != nil &&
+			if valueDeclaration := param.ValueDeclaration(); valueDeclaration != nil &&
 				valueDeclaration.Kind == ast.KindParameter &&
 				valueDeclaration.AsParameterDeclaration().DotDotDotToken != nil {
 				if typeArguments := getTypeArguments(paramType); len(typeArguments) > 0 {
@@ -624,7 +624,7 @@ var NoUnnecessaryTypeAssertionRule = rule.Rule{
 					return false
 				}
 
-				uncastProp := checker.Checker_getPropertyOfType(ctx.TypeChecker, uncast, prop.Name)
+				uncastProp := checker.Checker_getPropertyOfType(ctx.TypeChecker, uncast, prop.Name())
 				if uncastProp == nil {
 					return true
 				}
@@ -658,7 +658,7 @@ var NoUnnecessaryTypeAssertionRule = rule.Rule{
 					return true
 				}
 				paramType := checker.Checker_getTypeOfSymbol(ctx.TypeChecker, params[argIndex])
-				if valueDeclaration := params[argIndex].ValueDeclaration; valueDeclaration != nil &&
+				if valueDeclaration := params[argIndex].ValueDeclaration(); valueDeclaration != nil &&
 					valueDeclaration.Kind == ast.KindParameter &&
 					valueDeclaration.AsParameterDeclaration().DotDotDotToken != nil {
 					if typeArguments := getTypeArguments(paramType); len(typeArguments) > 0 {

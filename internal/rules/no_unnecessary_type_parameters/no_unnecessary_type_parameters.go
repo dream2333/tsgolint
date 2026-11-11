@@ -450,8 +450,8 @@ func collectTypeParameterUsageCounts(
 
 		if utils.IsTypeParameter(typeNode) {
 			typeParameterSymbol := checker.Type_symbol(typeNode)
-			if typeParameterSymbol != nil && len(typeParameterSymbol.Declarations) != 0 {
-				declaration := typeParameterSymbol.Declarations[0]
+			if typeParameterSymbol != nil && len(typeParameterSymbol.Declarations()) != 0 {
+				declaration := typeParameterSymbol.Declarations()[0]
 				if ast.IsTypeParameterDeclaration(declaration) {
 					incrementIdentifierCount(typeParameterSymbol, assumeMultipleUses)
 
@@ -500,7 +500,7 @@ func collectTypeParameterUsageCounts(
 					} else if checker.Checker_isArrayType(ctx.TypeChecker, target) {
 						symbolName := ""
 						if typeSymbol := checker.Type_symbol(typeNode); typeSymbol != nil {
-							symbolName = typeSymbol.Name
+							symbolName = typeSymbol.Name()
 						}
 						thisAssumeMultipleUses = thisAssumeMultipleUses || (isReturnType && symbolName == "Array")
 					} else {
