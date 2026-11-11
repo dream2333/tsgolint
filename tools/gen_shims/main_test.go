@@ -14,22 +14,53 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-func TestUnexportedElementType(t *testing.T) {
-	for _, tc := range []struct{ in, want string }{
-		// The field types the placeholder was introduced for.
-		{"core.Arena[checker.signatureExtra]", "core.Arena[struct{}]"},
-		{"[]checker.clearableMap[*checker.Type]", "[]struct{}"},
-		{"[]checker.propertyCount", "[]struct{}"},
-		// Exported types and builtins must be left alone.
-		{"core.Arena[checker.Signature]", "core.Arena[checker.Signature]"},
-		{"[]*checker.Type", "[]*checker.Type"},
-		{"map[ast.NodeId]*checker.Type", "map[ast.NodeId]*checker.Type"},
-		{"collections.Set[*ast.Node]", "collections.Set[*ast.Node]"},
-		{"map[string][]uint32", "map[string][]uint32"},
-		{"func(*checker.Type) bool", "func(*checker.Type) bool"},
-	} {
-		if got := unexportedElementType.ReplaceAllString(tc.in, "struct{}"); got != tc.want {
-			t.Errorf("rewrite(%q) = %q, want %q", tc.in, got, tc.want)
+func TestMirrorFieldType(t *testing.T) {
+	pkg := typeCheck(t, "example.com/checker", `package checker
+
+type Exported struct{ X int }
+type elem struct{ x, y uint64 }
+type kind uint8
+type Box[T any] struct{ items []T }
+type Inline[T any] struct{ item T }
+
+type fields struct {
+	slice    []elem
+	pointer  *elem
+	mapping  map[kind]*elem
+	channel  chan elem
+	boxed    Box[elem]
+	array    [4]elem
+	direct   kind
+	inline   Inline[elem]
+	exported []*Exported
+	builtin  map[string][]uint32
+}
+`, nil)
+	qualifier := func(p *types.Package) string { return p.Name() }
+	want := map[string]string{
+		"slice":    "[]struct{}",
+		"pointer":  "*struct{}",
+		"mapping":  "map[struct{}]*struct{}",
+		"channel":  "chan struct{}",
+		"boxed":    "checker.Box[struct{}]",
+		"array":    "[4]struct{x uint64; y uint64}",
+		"direct":   "uint8",
+		"inline":   "checker.Inline[struct{x uint64; y uint64}]",
+		"exported": "[]*checker.Exported",
+		"builtin":  "map[string][]uint32",
+	}
+	s := pkg.Scope().Lookup("fields").Type().Underlying().(*types.Struct)
+	for field := range s.Fields() {
+		mirror, err := mirrorFieldType(field.Type())
+		if err != nil {
+			t.Errorf("%s: %v", field.Name(), err)
+			continue
+		}
+		if !sameLayout(field.Type(), mirror) {
+			t.Errorf("%s: mirror %s has a different layout", field.Name(), mirror)
+		}
+		if got := types.TypeString(mirror, qualifier); got != want[field.Name()] {
+			t.Errorf("%s: got %q, want %q", field.Name(), got, want[field.Name()])
 		}
 	}
 }
@@ -187,11 +218,6 @@ func compareLayout(t *testing.T, name string, mirrorObj types.Object, realObj ty
 // generated shims against the struct it mirrors. The shims read private fields
 // through these mirrors with unsafe.Pointer casts, so a layout mismatch reads
 // the wrong memory instead of failing to compile.
-//
-// This is also what keeps unexportedElementType honest: it rewrites every
-// unexported qualified type in a field type, not only slice and arena
-// elements, so a field such as [4]checker.propertyCount would get a mirror of
-// a different size and fail here.
 func TestGeneratedMirrorLayout(t *testing.T) {
 	shimRoot := filepath.Join("..", "..", "shim")
 	var shimDirs []string

@@ -225,7 +225,7 @@ type extra_Checker struct {
   templateLiteralTypes map[checker.CacheHashKey]*checker.Type
   stringMappingTypes map[checker.StringMappingKey]*checker.Type
   uniqueESSymbolTypes map[*ast.Symbol]*checker.Type
-  thisExpandoKinds map[*ast.Symbol]int32
+  thisExpandoKinds map[*ast.Symbol]struct{}
   thisExpandoLocations map[*ast.Symbol]*ast.Node
   subtypeReductionCache map[checker.CacheHashKey][]*checker.Type
   cachedTypes map[checker.CachedTypeKey]*checker.Type
@@ -251,7 +251,7 @@ type extra_Checker struct {
   errorTypes map[checker.CacheHashKey]*checker.Type
   moduleSymbols map[*ast.Node]*ast.Symbol
   globalThisSymbol *ast.Symbol
-  symbolTableAliasCache map[uint64][]*ast.Symbol
+  symbolTableAliasCache map[struct{}][]*ast.Symbol
   classExpressionNameTables map[ast.NodeId]ast.SymbolTable
   resolveName func(location *ast.Node, name string, meaning ast.SymbolFlags, nameNotFoundMessage *diagnostics.Message, isUse bool, excludeGlobals bool) *ast.Symbol
   resolveNameForSymbolSuggestion func(location *ast.Node, name string, meaning ast.SymbolFlags, nameNotFoundMessage *diagnostics.Message, isUse bool, excludeGlobals bool) *ast.Symbol

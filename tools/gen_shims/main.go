@@ -8,7 +8,6 @@ import (
 	"maps"
 	"os"
 	"path"
-	"regexp"
 	"slices"
 	"strings"
 
@@ -19,7 +18,93 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
-var unexportedElementType = regexp.MustCompile(`\b[a-z]+\.[a-z][A-Za-z0-9_]*(\[[^\[\]]*\])?`)
+// mirrorSizes are the size models a mirror field is checked against.
+var mirrorSizes = []types.Sizes{
+	types.SizesFor("gc", "amd64"),
+	types.SizesFor("gc", "arm64"),
+	types.SizesFor("gc", "386"),
+}
+
+var emptyStruct = types.NewStruct(nil, nil)
+
+// mirrorFieldType returns a type with the same size and alignment as t that a
+// shim package can spell, i.e. one that names no unexported type.
+//
+// An unexported type behind a pointer, slice, map or channel cannot change the
+// layout of the field that holds it, so it becomes struct{}. Anywhere else it
+// is replaced by its underlying type. Type arguments are tried as struct{}
+// first, because whether they matter depends on the generic type.
+func mirrorFieldType(t types.Type) (types.Type, error) {
+	for _, opaqueArgs := range []bool{true, false} {
+		m := rewriteUnexported(t, false, opaqueArgs)
+		if sameLayout(t, m) {
+			return m, nil
+		}
+	}
+	return nil, fmt.Errorf("no mirror with the same layout for %s", t)
+}
+
+func sameLayout(a types.Type, b types.Type) bool {
+	for _, sizes := range mirrorSizes {
+		if sizes.Sizeof(a) != sizes.Sizeof(b) || sizes.Alignof(a) != sizes.Alignof(b) {
+			return false
+		}
+	}
+	return true
+}
+
+func rewriteUnexported(t types.Type, indirect bool, opaqueArgs bool) types.Type {
+	switch t := t.(type) {
+	case *types.Named:
+		if t.Obj().Pkg() != nil && !t.Obj().Exported() {
+			if indirect {
+				return emptyStruct
+			}
+			return rewriteUnexported(t.Underlying(), false, opaqueArgs)
+		}
+		args := t.TypeArgs()
+		if args.Len() == 0 {
+			return t
+		}
+		rewritten := make([]types.Type, args.Len())
+		changed := false
+		for i := range args.Len() {
+			rewritten[i] = rewriteUnexported(args.At(i), opaqueArgs, opaqueArgs)
+			changed = changed || rewritten[i] != args.At(i)
+		}
+		if !changed {
+			return t
+		}
+		inst, err := types.Instantiate(nil, t.Origin(), rewritten, false)
+		if err != nil {
+			return t
+		}
+		return inst
+	case *types.Pointer:
+		if elem := rewriteUnexported(t.Elem(), true, opaqueArgs); elem != t.Elem() {
+			return types.NewPointer(elem)
+		}
+	case *types.Slice:
+		if elem := rewriteUnexported(t.Elem(), true, opaqueArgs); elem != t.Elem() {
+			return types.NewSlice(elem)
+		}
+	case *types.Chan:
+		if elem := rewriteUnexported(t.Elem(), true, opaqueArgs); elem != t.Elem() {
+			return types.NewChan(t.Dir(), elem)
+		}
+	case *types.Map:
+		key := rewriteUnexported(t.Key(), true, opaqueArgs)
+		elem := rewriteUnexported(t.Elem(), true, opaqueArgs)
+		if key != t.Key() || elem != t.Elem() {
+			return types.NewMap(key, elem)
+		}
+	case *types.Array:
+		if elem := rewriteUnexported(t.Elem(), indirect, opaqueArgs); elem != t.Elem() {
+			return types.NewArray(elem, t.Len())
+		}
+	}
+	return t
+}
 
 const tsgoInternalPrefix = "github.com/microsoft/TypeScript/tsc/internal/"
 
@@ -79,14 +164,11 @@ func writeMirrorStruct(b *strings.Builder, name string, s *types.Struct, qualifi
 			}
 		}
 
-		fieldType := types.TypeString(field.Type(), qualifier)
-		// TODO: move to extra-shim.json
-		fieldType = strings.ReplaceAll(fieldType, "checker.thisAssignmentDeclarationKind", "int32")
-		fieldType = strings.ReplaceAll(fieldType, "checker.symbolTableID", "uint64")
-		// Unexported element types of slices and arenas do not affect the
-		// layout of the field that holds them, so any placeholder will do.
-		fieldType = unexportedElementType.ReplaceAllString(fieldType, "struct{}")
-		b.WriteString(fieldType)
+		mirrorType, err := mirrorFieldType(field.Type())
+		if err != nil {
+			log.Fatalf("extra_%s.%s: %v", name, field.Name(), err)
+		}
+		b.WriteString(types.TypeString(mirrorType, qualifier))
 	}
 	b.WriteString("\n}\n")
 
