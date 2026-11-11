@@ -8,11 +8,18 @@ import (
 	"github.com/microsoft/TypeScript/tsc/shim/tspath"
 )
 
+// GetCurrentDirectory returns the working directory the tsgolint compiler host was
+// created with. TypeScript 7.1 dropped CompilerHost.GetCurrentDirectory, so fall back
+// to the program's base directory for foreign hosts.
+func GetCurrentDirectory(program *compiler.Program) string {
+	if h, ok := program.Host().(interface{ GetCurrentDirectory() string }); ok {
+		return h.GetCurrentDirectory()
+	}
+	return program.GetCurrentDirectory().AsString()
+}
+
 func ComparePaths(a string, b string, program *compiler.Program) int {
-	return tspath.ComparePaths(a, b, tspath.ComparePathsOptions{
-		CurrentDirectory:          program.Host().GetCurrentDirectory(),
-		UseCaseSensitiveFileNames: program.Host().FS().UseCaseSensitiveFileNames(),
-	})
+	return tspath.ComparePathsRelativeTo(a, b, tspath.RootedDirectoryPathFromAbsolute(GetCurrentDirectory(program)), program.Host().FS().CaseSensitivity())
 }
 
 func IsSourceFileDefaultLibrary(program *compiler.Program, file *ast.SourceFile) bool {
@@ -20,7 +27,7 @@ func IsSourceFileDefaultLibrary(program *compiler.Program, file *ast.SourceFile)
 		return false
 	}
 
-	if program.IsSourceFileDefaultLibrary(file.Path()) {
+	if program.IsSourceFileDefaultLibrary(file.PathKey()) {
 		return true
 	}
 
@@ -34,19 +41,19 @@ func IsSourceFileDefaultLibrary(program *compiler.Program, file *ast.SourceFile)
 	var libs []string
 	if options.Lib == nil {
 		name := tsoptions.GetDefaultLibFileName(options)
-		libs = append(libs, tspath.CombinePaths(program.Host().DefaultLibraryPath(), name))
+		libs = append(libs, tspath.CombinePaths(program.Host().DefaultLibraryPath().AsString(), name))
 	} else {
 		for _, lib := range options.Lib {
 			name, ok := tsoptions.GetLibFileName(lib)
 			if ok {
-				libs = append(libs, tspath.CombinePaths(program.Host().DefaultLibraryPath(), name))
+				libs = append(libs, tspath.CombinePaths(program.Host().DefaultLibraryPath().AsString(), name))
 			}
 			// !!! error on unknown name
 		}
 	}
 
 	return Some(libs, func(lib string) bool {
-		return ComparePaths(file.FileName(), lib, program) == 0
+		return ComparePaths(file.FileName().AsString(), lib, program) == 0
 	})
 }
 
@@ -58,7 +65,7 @@ func IsSymbolFromDefaultLibrary(
 		return false
 	}
 
-	for _, declaration := range symbol.Declarations {
+	for _, declaration := range symbol.Declarations() {
 		sourceFile := ast.GetSourceFileOfNode(declaration)
 		if IsSourceFileDefaultLibrary(program, sourceFile) {
 			return true
@@ -148,7 +155,7 @@ func IsReadonlyTypeLike(
 	predicate func(subType *checker.Type) bool,
 ) bool {
 	return IsBuiltinTypeAliasLike(program, typeChecker, t, func(subtype *checker.Type) bool {
-		return checker.Type_alias(subtype).Symbol().Name == "Readonly" && predicate(subtype)
+		return checker.Type_alias(subtype).Symbol().Name() == "Readonly" && predicate(subtype)
 	})
 }
 
@@ -192,7 +199,7 @@ func IsBuiltinSymbolLike(
 			return builtinPredicateMatches_False
 		}
 
-		actualSymbolName := symbol.Name
+		actualSymbolName := symbol.Name()
 
 		if Some(symbolNames, func(name string) bool { return actualSymbolName == name }) && IsSymbolFromDefaultLibrary(program, symbol) {
 			return builtinPredicateMatches_True
@@ -255,7 +262,7 @@ func IsBuiltinSymbolLikeRecurser(
 	}
 
 	symbol := checker.Type_symbol(t)
-	if symbol != nil && symbol.Flags&(ast.SymbolFlagsClass|ast.SymbolFlagsInterface) != 0 {
+	if symbol != nil && symbol.Flags()&(ast.SymbolFlagsClass|ast.SymbolFlagsInterface) != 0 {
 		declaredType := checker.Checker_getDeclaredTypeOfSymbol(typeChecker, symbol)
 		for _, baseType := range checker.Checker_getBaseTypes(typeChecker, declaredType) {
 			if IsBuiltinSymbolLikeRecurser(program, typeChecker, baseType, predicate) {

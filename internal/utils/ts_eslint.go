@@ -112,7 +112,7 @@ func GetTypeName(
 		// the type parameter for some reason. So this gets the constraint type
 		// via AST.
 		symbol := checker.Type_symbol(t)
-		decls := symbol.Declarations
+		decls := symbol.Declarations()
 		if decls != nil && len(decls) > 0 {
 			if ast.IsTypeParameterDeclaration(decls[0]) {
 				typeParamDecl := decls[0].AsTypeParameterDeclaration()
@@ -258,8 +258,8 @@ func GetDeclaration(
 	if symbol == nil {
 		return nil
 	}
-	if len(symbol.Declarations) > 0 {
-		return symbol.Declarations[0]
+	if len(symbol.Declarations()) > 0 {
+		return symbol.Declarations()[0]
 	}
 	return nil
 }
@@ -463,7 +463,7 @@ func getBaseEnumType(typeChecker *checker.Checker, t *checker.Type) *checker.Typ
 	}
 
 	return typeChecker.GetTypeAtLocation(
-		symbol.ValueDeclaration.Parent,
+		symbol.ValueDeclaration().Parent,
 	)
 }
 

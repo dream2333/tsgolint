@@ -19,16 +19,16 @@ var _ compiler.CompilerHost = (*compilerHost)(nil)
 type compilerHost struct {
 	currentDirectory          string
 	fs                        vfs.FS
-	defaultLibraryPath        string
+	defaultLibraryPath        tspath.RootedDirectoryPath
 	extendedConfigCache       tsoptions.ExtendedConfigCache
 	trace                     func(msg *ast.DiagnosticsMessage, args ...any)
-	resolvedProjectReferences collections.SyncMap[tspath.Path, *tsoptions.ParsedCommandLine]
+	resolvedProjectReferences collections.SyncMap[tspath.PathKey, *tsoptions.ParsedCommandLine]
 }
 
 func NewCachedFSCompilerHost(
 	currentDirectory string,
 	fs vfs.FS,
-	defaultLibraryPath string,
+	defaultLibraryPath tspath.RootedDirectoryPath,
 	extendedConfigCache tsoptions.ExtendedConfigCache,
 	trace func(msg *ast.DiagnosticsMessage, args ...any),
 ) compiler.CompilerHost {
@@ -38,7 +38,7 @@ func NewCachedFSCompilerHost(
 func NewCompilerHost(
 	currentDirectory string,
 	fs vfs.FS,
-	defaultLibraryPath string,
+	defaultLibraryPath tspath.RootedDirectoryPath,
 	extendedConfigCache tsoptions.ExtendedConfigCache,
 	trace func(msg *ast.DiagnosticsMessage, args ...any),
 ) compiler.CompilerHost {
@@ -58,7 +58,7 @@ func (h *compilerHost) FS() vfs.FS {
 	return h.fs
 }
 
-func (h *compilerHost) DefaultLibraryPath() string {
+func (h *compilerHost) DefaultLibraryPath() tspath.RootedDirectoryPath {
 	return h.defaultLibraryPath
 }
 
@@ -94,7 +94,7 @@ func (h *compilerHost) GetSourceFile(opts ast.SourceFileParseOptions) *ast.Sourc
 
 	scriptKind := core.GetScriptKindFromFileName(opts.FileName)
 	if scriptKind == core.ScriptKindUnknown {
-		panic("Unknown script kind for file  " + opts.FileName)
+		panic("Unknown script kind for file  " + opts.FileName.AsString())
 	}
 
 	key := GetSourceFileCacheKey(opts, text, scriptKind)
@@ -116,11 +116,11 @@ func (h *compilerHost) ContentMapperProject() contentmapper.Project {
 	return nil
 }
 
-func (h *compilerHost) GetResolvedProjectReference(fileName string, path tspath.Path) *tsoptions.ParsedCommandLine {
+func (h *compilerHost) GetResolvedProjectReference(fileName tspath.RootedFilePath, path tspath.PathKey) *tsoptions.ParsedCommandLine {
 	if cached, ok := h.resolvedProjectReferences.Load(path); ok {
 		return cached
 	}
-	commandLine, _ := tsoptions.GetParsedCommandLineOfConfigFilePath(fileName, path, nil, nil, h, h.extendedConfigCache)
+	commandLine, _ := tsoptions.GetParsedCommandLineOfConfigFilePath(fileName, path, nil, nil, tsoptions.NewDefaultParseConfigHost(h.fs), h.extendedConfigCache)
 	result, _ := h.resolvedProjectReferences.LoadOrStore(path, commandLine)
 	return result
 }

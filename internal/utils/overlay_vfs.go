@@ -18,26 +18,26 @@ type OverlayVFS struct {
 
 var _ vfs.FS = (*OverlayVFS)(nil)
 
-func (vfs *OverlayVFS) UseCaseSensitiveFileNames() bool {
-	return vfs.fs.UseCaseSensitiveFileNames()
+func (vfs *OverlayVFS) CaseSensitivity() tspath.CaseSensitivity {
+	return vfs.fs.CaseSensitivity()
 }
 
-func (vfs *OverlayVFS) FileExists(path string) bool {
-	if _, ok := vfs.VirtualFiles[path]; ok {
+func (vfs *OverlayVFS) FileExists(path tspath.RootedFilePath) bool {
+	if _, ok := vfs.VirtualFiles[path.AsString()]; ok {
 		return ok
 	}
 	return vfs.fs.FileExists(path)
 }
 
-func (vfs *OverlayVFS) ReadFile(path string) (contents string, ok bool) {
-	if src, ok := vfs.VirtualFiles[path]; ok {
+func (vfs *OverlayVFS) ReadFile(path tspath.RootedFilePath) (contents string, ok bool) {
+	if src, ok := vfs.VirtualFiles[path.AsString()]; ok {
 		return src, ok
 	}
 	return vfs.fs.ReadFile(path)
 }
 
-func (vfs *OverlayVFS) DirectoryExists(path string) bool {
-	normalizedPath := tspath.NormalizePath(path)
+func (vfs *OverlayVFS) DirectoryExists(path tspath.RootedDirectoryPath) bool {
+	normalizedPath := path.AsString()
 	if !strings.HasSuffix(normalizedPath, "/") {
 		normalizedPath = normalizedPath + "/"
 	}
@@ -50,10 +50,10 @@ func (vfs *OverlayVFS) DirectoryExists(path string) bool {
 	return vfs.fs.DirectoryExists(path)
 }
 
-func (vfs *OverlayVFS) GetAccessibleEntries(path string) (result vfs.Entries) {
+func (vfs *OverlayVFS) GetAccessibleEntries(path tspath.RootedDirectoryPath) (result vfs.Entries) {
 	result = vfs.fs.GetAccessibleEntries(path)
 
-	normalizedPath := tspath.NormalizePath(path)
+	normalizedPath := path.AsString()
 	if !strings.HasSuffix(normalizedPath, "/") {
 		normalizedPath = normalizedPath + "/"
 	}
@@ -117,51 +117,46 @@ func (fi *overlayVFSFileInfo) Type() fs.FileMode {
 	return fi.mode.Type()
 }
 
-func (vfs *OverlayVFS) Stat(path string) vfs.FileInfo {
-	if src, ok := vfs.VirtualFiles[path]; ok {
+func (vfs *OverlayVFS) Stat(path tspath.RootedPath) vfs.FileInfo {
+	if src, ok := vfs.VirtualFiles[path.AsString()]; ok {
 		return &overlayVFSFileInfo{
-			name: path,
+			name: path.AsString(),
 			size: int64(len(src)),
 		}
 	}
 	return vfs.fs.Stat(path)
 }
 
-func (vfs *OverlayVFS) WalkDir(root string, walkFn vfs.WalkDirFunc) error {
-	// TODO: do we need to walk over virtual files here as well?
-	return vfs.fs.WalkDir(root, walkFn)
-}
-
-func (vfs *OverlayVFS) Realpath(path string) string {
-	if _, ok := vfs.VirtualFiles[path]; ok {
+func (vfs *OverlayVFS) Realpath(path tspath.RootedPath) tspath.RootedPath {
+	if _, ok := vfs.VirtualFiles[path.AsString()]; ok {
 		return path
 	}
 	return vfs.fs.Realpath(path)
 }
 
-func (vfs *OverlayVFS) WriteFile(path string, data string) error {
-	if _, ok := vfs.VirtualFiles[path]; ok {
+func (vfs *OverlayVFS) WriteFile(path tspath.RootedFilePath, data string) error {
+	if _, ok := vfs.VirtualFiles[path.AsString()]; ok {
 		panic("not implemented: cannot write to overlay file system")
 	}
 	return vfs.fs.WriteFile(path, data)
 }
 
-func (vfs *OverlayVFS) AppendFile(path string, data string) error {
-	if _, ok := vfs.VirtualFiles[path]; ok {
+func (vfs *OverlayVFS) AppendFile(path tspath.RootedFilePath, data string) error {
+	if _, ok := vfs.VirtualFiles[path.AsString()]; ok {
 		panic("not implemented: cannot append to overlay file system")
 	}
 	return vfs.fs.AppendFile(path, data)
 }
 
-func (vfs *OverlayVFS) Remove(path string) error {
-	if _, ok := vfs.VirtualFiles[path]; ok {
+func (vfs *OverlayVFS) Remove(path tspath.RootedPath) error {
+	if _, ok := vfs.VirtualFiles[path.AsString()]; ok {
 		panic("not implemented: cannot remove from overlay file system")
 	}
 	return vfs.fs.Remove(path)
 }
 
-func (vfs *OverlayVFS) Chtimes(path string, aTime time.Time, mTime time.Time) error {
-	if _, ok := vfs.VirtualFiles[path]; ok {
+func (vfs *OverlayVFS) Chtimes(path tspath.RootedPath, aTime time.Time, mTime time.Time) error {
+	if _, ok := vfs.VirtualFiles[path.AsString()]; ok {
 		panic("not implemented: cannot change times on overlay file system")
 	}
 	return vfs.fs.Chtimes(path, aTime, mTime)

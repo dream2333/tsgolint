@@ -20,7 +20,7 @@ func TestIsSymbolFromDefaultLibrary(t *testing.T) {
 
 		program, _, err := CreateProgram(true, fs, rootDir, "tsconfig.minimal.json", CreateCompilerHost(rootDir, fs), false)
 		assert.NilError(t, err, "couldn't create program")
-		sourceFile := program.GetSourceFile(filePath)
+		sourceFile := program.GetSourceFile(tspath.RootedFilePathFromAbsolute(filePath))
 		c, done := program.GetTypeChecker(t.Context())
 		defer done()
 		t := c.GetTypeAtLocation(sourceFile.Statements.Nodes[0].AsTypeAliasDeclaration().Name())

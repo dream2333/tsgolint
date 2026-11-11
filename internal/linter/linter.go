@@ -111,16 +111,17 @@ func RunLinter(options RunLinterOptions) error {
 			log.Printf("Program created with %d source files", len(program.GetSourceFiles()))
 		}
 
-		fileSet := make(map[tspath.Path]string, len(filePaths))
+		currentDirectoryPath := tspath.RootedDirectoryPathFromAbsolute(currentDirectory)
+		fileSet := make(map[tspath.PathKey]string, len(filePaths))
 		for _, f := range filePaths {
-			fileSet[tspath.ToPath(f, currentDirectory, fs.UseCaseSensitiveFileNames())] = f
+			fileSet[fs.CaseSensitivity().PathKey(tspath.ToRootedPath(f, currentDirectoryPath))] = f
 		}
 
 		sourceFiles := make([]*ast.SourceFile, 0, len(filePaths))
 		for _, sf := range program.SourceFiles() {
-			if _, ok := fileSet[sf.Path()]; ok {
+			if _, ok := fileSet[sf.PathKey()]; ok {
 				sourceFiles = append(sourceFiles, sf)
-				delete(fileSet, sf.Path())
+				delete(fileSet, sf.PathKey())
 			}
 		}
 
@@ -134,7 +135,7 @@ func RunLinter(options RunLinterOptions) error {
 
 			var programFiles []string
 			for _, k := range program.SourceFiles() {
-				programFiles = append(programFiles, k.FileName())
+				programFiles = append(programFiles, k.FileName().AsString())
 			}
 			log.Printf("Program source files (%d): %s", len(programFiles), strings.Join(programFiles, ", "))
 
@@ -176,7 +177,7 @@ func RunLinter(options RunLinterOptions) error {
 
 		files := make([]*ast.SourceFile, 0, len(workload.UnmatchedFiles))
 		for _, f := range workload.UnmatchedFiles {
-			sf := program.GetSourceFile(f)
+			sf := program.GetSourceFile(tspath.ToRootedFilePath(f, tspath.RootedDirectoryPathFromAbsolute(currentDirectory)))
 			if sf == nil {
 				panic(fmt.Sprintf("Expected file '%s' to be in inferred program", f))
 			}
@@ -311,11 +312,11 @@ func reportTypeScriptDiagnostics(program *compiler.Program, files []*ast.SourceF
 
 	if typeErrors.ReportSyntactic {
 		for _, file := range files {
-			fileName := file.FileName()
+			fileName := file.FileName().AsString()
 
 			syntacticDiagnostics := program.GetSyntacticDiagnostics(ctx, file)
 			for _, d := range syntacticDiagnostics {
-				if d.File() != nil && d.File().FileName() == fileName {
+				if d.File() != nil && d.File().FileName().AsString() == fileName {
 					onInternalDiagnostic(diagnostic.Internal{
 						Range:       d.Loc(),
 						Id:          "TS" + strconv.Itoa(int(d.Code())),
@@ -328,12 +329,12 @@ func reportTypeScriptDiagnostics(program *compiler.Program, files []*ast.SourceF
 	}
 
 	if typeErrors.ReportSemantic {
-		semanticDiagnosticsByFile := program.GetSemanticDiagnosticsWithoutNoEmitFiltering(ctx, files)
+		semanticDiagnosticsByFile := program.GetSemanticDiagnosticsForIncremental(ctx, files)
 
 		programOption := program.Options()
 
 		for _, file := range files {
-			fileName := file.FileName()
+			fileName := file.FileName().AsString()
 			finalDiagnostics := compiler.FilterNoEmitSemanticDiagnostics(semanticDiagnosticsByFile[file], programOption)
 			includeProcessorDiagnostics := program.GetIncludeProcessorDiagnostics(file)
 			if len(finalDiagnostics) == 0 && len(includeProcessorDiagnostics) == 0 {
@@ -345,7 +346,7 @@ func reportTypeScriptDiagnostics(program *compiler.Program, files []*ast.SourceF
 			}
 
 			for _, d := range finalDiagnostics {
-				if d.File() != nil && d.File().FileName() == fileName {
+				if d.File() != nil && d.File().FileName().AsString() == fileName {
 					onInternalDiagnostic(diagnostic.Internal{
 						Range:       d.Loc(),
 						Id:          "TS" + strconv.Itoa(int(d.Code())),
@@ -444,7 +445,7 @@ func RunLinterOnProgram(options RunLinterOnProgramOptions) error {
 	reportTypeScriptDiagnostics(program, files, typeErrors, onInternalDiagnostic)
 	scheduler := newCheckerScheduler(scheduling, program, files, workers)
 
-	wg := core.NewWorkGroup(scheduler.workers == 1)
+	wg := core.NewWorkGroup(core.WorkGroupConcurrency(scheduler.workers == 1))
 	for i := range scheduler.workers {
 		wg.Queue(func() {
 			initial, hasWork := scheduler.initialWorkload(i)

@@ -40,7 +40,7 @@ function greet(name: string): string {
 	program, _, err := utils.CreateProgram(true, fs, rootDir, "tsconfig.minimal.json", host, false)
 	assert.NilError(t, err, "couldn't create program")
 
-	sourceFiles := []*ast.SourceFile{program.GetSourceFile(filePath)}
+	sourceFiles := []*ast.SourceFile{program.GetSourceFile(tspath.RootedFilePathFromAbsolute(filePath))}
 
 	const ruleName = "multi-listener-rule"
 	funcMessage := rule.RuleMessage{
@@ -94,7 +94,7 @@ function greet(name: string): string {
 	for i, d := range diagnostics {
 		assert.Equal(t, d.RuleName, ruleName, "diagnostic %d should have the correct rule name", i)
 		assert.Assert(t, d.SourceFile != nil, "diagnostic %d should have a non-nil source file", i)
-		assert.Equal(t, d.SourceFile.FileName(), filePath, "diagnostic %d source file should match the input file", i)
+		assert.Equal(t, d.SourceFile.FileName().AsString(), filePath, "diagnostic %d source file should match the input file", i)
 	}
 
 	// Verify each listener produced the expected diagnostic (order matches AST traversal)
@@ -122,7 +122,7 @@ function add(a: number, b: number): number {
 	program, _, err := utils.CreateProgram(true, fs, rootDir, "tsconfig.minimal.json", host, false)
 	assert.NilError(t, err, "couldn't create program")
 
-	sourceFiles := []*ast.SourceFile{program.GetSourceFile(filePath)}
+	sourceFiles := []*ast.SourceFile{program.GetSourceFile(tspath.RootedFilePathFromAbsolute(filePath))}
 
 	const ruleA = "no-variables"
 	const ruleB = "no-functions"
@@ -183,7 +183,7 @@ function add(a: number, b: number): number {
 	// All diagnostics should reference the correct source file
 	for i, d := range diagnostics {
 		assert.Assert(t, d.SourceFile != nil, "diagnostic %d should have a non-nil source file", i)
-		assert.Equal(t, d.SourceFile.FileName(), filePath, "diagnostic %d source file should match the input file", i)
+		assert.Equal(t, d.SourceFile.FileName().AsString(), filePath, "diagnostic %d source file should match the input file", i)
 	}
 
 	// Each diagnostic should be attributed to the correct rule.
@@ -211,7 +211,7 @@ func TestRunLinterOnProgram_DiagnosticsEmittedInRun(t *testing.T) {
 	program, _, err := utils.CreateProgram(true, fs, rootDir, "tsconfig.minimal.json", host, false)
 	assert.NilError(t, err, "couldn't create program")
 
-	sourceFiles := []*ast.SourceFile{program.GetSourceFile(filePath)}
+	sourceFiles := []*ast.SourceFile{program.GetSourceFile(tspath.RootedFilePathFromAbsolute(filePath))}
 
 	const ruleA = "file-checker-a"
 	const ruleB = "file-checker-b"
@@ -272,7 +272,7 @@ func TestRunLinterOnProgram_DiagnosticsEmittedInRun(t *testing.T) {
 	// Both diagnostics should have the correct source file set by the linter
 	for i, d := range diagnostics {
 		assert.Assert(t, d.SourceFile != nil, "diagnostic %d should have a non-nil source file", i)
-		assert.Equal(t, d.SourceFile.FileName(), filePath, "diagnostic %d source file should match the input file", i)
+		assert.Equal(t, d.SourceFile.FileName().AsString(), filePath, "diagnostic %d source file should match the input file", i)
 	}
 
 	// Verify each diagnostic is attributed to the correct rule
@@ -303,7 +303,7 @@ function greet() {
 	program, _, err := utils.CreateProgram(true, fs, rootDir, "tsconfig.minimal.json", host, false)
 	assert.NilError(t, err, "couldn't create program")
 
-	sourceFiles := []*ast.SourceFile{program.GetSourceFile(filePath)}
+	sourceFiles := []*ast.SourceFile{program.GetSourceFile(tspath.RootedFilePathFromAbsolute(filePath))}
 
 	const ruleA = "timed-variable-rule"
 	const ruleB = "timed-function-rule"

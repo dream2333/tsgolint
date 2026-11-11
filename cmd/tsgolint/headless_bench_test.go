@@ -56,9 +56,9 @@ func setupBenchmarkEnv(b *testing.B, singleThreaded bool) benchmarkEnv {
 
 	// Collect all source files under the fixture directory (skip node_modules/lib files).
 	var files []*ast.SourceFile
-	prefix := string(tspath.ToPath("", dir, fs.UseCaseSensitiveFileNames()).EnsureTrailingDirectorySeparator())
+	prefix := tspath.EnsureTrailingDirectorySeparator(fs.CaseSensitivity().PathKey(tspath.RootedDirectoryPathFromAbsolute(dir).AsPath()).AsString())
 	for _, sf := range program.SourceFiles() {
-		if strings.HasPrefix(string(sf.Path()), prefix) {
+		if strings.HasPrefix(sf.PathKey().AsString(), prefix) {
 			files = append(files, sf)
 		}
 	}

@@ -235,7 +235,7 @@ func init() {
 
 const spaces = "                                                                                                    "
 
-func printDiagnostic(d rule.RuleDiagnostic, w *bufio.Writer, comparePathOptions tspath.ComparePathsOptions) {
+func printDiagnostic(d rule.RuleDiagnostic, w *bufio.Writer, currentDirectory tspath.RootedDirectoryPath, caseSensitivity tspath.CaseSensitivity) {
 	diagnosticStart := d.Range.Pos()
 	diagnosticEnd := d.Range.End()
 
@@ -267,7 +267,7 @@ func printDiagnostic(d rule.RuleDiagnostic, w *bufio.Writer, comparePathOptions 
 		w.WriteString(d.Message.Description[messageLineStart:len(d.Message.Description)])
 	}
 	w.WriteString("\n  \x1b[2m╭─┴──────────(\x1b[0m \x1b[3m\x1b[38;5;117m")
-	w.WriteString(tspath.ConvertToRelativePath(d.SourceFile.FileName(), comparePathOptions))
+	w.WriteString(tspath.ConvertToRelativePath(d.SourceFile.FileName().AsString(), currentDirectory, caseSensitivity))
 	w.WriteByte(':')
 	w.WriteString(strconv.Itoa(diagnosticStartLine + 1))
 	w.WriteByte(':')
@@ -501,14 +501,14 @@ func runMain() int {
 	var configFileName string
 	if tsconfig == "" {
 		configFileName = tspath.ResolvePath(currentDirectory, "tsconfig.json")
-		if !fs.FileExists(configFileName) {
+		if !fs.FileExists(tspath.RootedFilePathFromAbsolute(configFileName)) {
 			fs = utils.NewOverlayVFS(fs, map[string]string{
 				configFileName: "{}",
 			})
 		}
 	} else {
 		configFileName = tspath.ResolvePath(currentDirectory, tsconfig)
-		if !fs.FileExists(configFileName) {
+		if !fs.FileExists(tspath.RootedFilePathFromAbsolute(configFileName)) {
 			fmt.Fprintf(os.Stderr, "error: tsconfig %q doesn't exist", tsconfig)
 			return 1
 		}
@@ -518,10 +518,8 @@ func runMain() int {
 
 	host := utils.CreateCompilerHost(currentDirectory, fs)
 
-	comparePathOptions := tspath.ComparePathsOptions{
-		CurrentDirectory:          host.GetCurrentDirectory(),
-		UseCaseSensitiveFileNames: host.FS().UseCaseSensitiveFileNames(),
-	}
+	currentDirectoryPath := tspath.RootedDirectoryPathFromAbsolute(currentDirectory)
+	caseSensitivity := host.FS().CaseSensitivity()
 
 	program, _, err := utils.CreateProgram(singleThreaded, fs, currentDirectory, configFileName, host, false)
 	if err != nil {
@@ -535,10 +533,10 @@ func runMain() int {
 	}
 
 	files := []*ast.SourceFile{}
-	cwdPath := string(tspath.ToPath("", currentDirectory, program.Host().FS().UseCaseSensitiveFileNames()).EnsureTrailingDirectorySeparator())
+	cwdPath := tspath.EnsureTrailingDirectorySeparator(caseSensitivity.PathKey(currentDirectoryPath.AsPath()).AsString())
 	var matchedFiles strings.Builder
 	for _, file := range program.SourceFiles() {
-		p := string(file.Path())
+		p := file.PathKey().AsString()
 		if strings.Contains(p, "/node_modules/") {
 			continue
 		}
@@ -571,7 +569,7 @@ func runMain() int {
 			if errorsCount == 1 {
 				w.WriteByte('\n')
 			}
-			printDiagnostic(d, w, comparePathOptions)
+			printDiagnostic(d, w, currentDirectoryPath, caseSensitivity)
 			if w.Available() < 4096 {
 				w.Flush()
 			}

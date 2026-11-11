@@ -97,14 +97,14 @@ func RunRuleTester(rootDir string, tsconfigPath string, t *testing.T, r *rule.Ru
 		}
 		assert.Assert(t, program != nil, "couldn't create program")
 
-		sourceFile := program.GetSourceFile(fileName)
+		sourceFile := program.GetSourceFile(tspath.ToRootedFilePath(fileName, tspath.RootedDirectoryPathFromAbsolute(rootDir)))
 		if sourceFile == nil {
-			sourceFile = program.GetSourceFile(resolvedFileName)
+			sourceFile = program.GetSourceFile(tspath.ToRootedFilePath(resolvedFileName, tspath.RootedDirectoryPathFromAbsolute(rootDir)))
 		}
 		if sourceFile == nil {
 			programFiles := make([]string, 0, len(program.SourceFiles()))
 			for _, sf := range program.SourceFiles() {
-				programFiles = append(programFiles, sf.FileName())
+				programFiles = append(programFiles, sf.FileName().AsString())
 			}
 			slices.Sort(programFiles)
 			assert.Assert(t, false, "couldn't get source file: "+fileName+" (resolved: "+resolvedFileName+"). program source files ("+strconv.Itoa(len(programFiles))+"): "+strings.Join(programFiles, ", "))

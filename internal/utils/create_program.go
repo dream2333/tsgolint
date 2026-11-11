@@ -28,12 +28,13 @@ func enhanceHelpDiagnosticMessage(msg string) string {
 }
 
 func CreateProgram(singleThreaded bool, fs vfs.FS, cwd string, tsconfigPath string, host compiler.CompilerHost, suppressProgramDiagnostics bool) (*compiler.Program, []diagnostic.Internal, error) {
-	resolvedConfigPath := tspath.ResolvePath(cwd, tsconfigPath)
-	if !fs.FileExists(resolvedConfigPath) {
+	resolvedConfigFileName := tspath.ToRootedFilePath(tsconfigPath, tspath.RootedDirectoryPathFromAbsolute(cwd))
+	resolvedConfigPath := resolvedConfigFileName.AsString()
+	if !fs.FileExists(resolvedConfigFileName) {
 		return nil, nil, fmt.Errorf("couldn't read tsconfig at %v", resolvedConfigPath)
 	}
 
-	configParseResult, diagnostics := tsoptions.GetParsedCommandLineOfConfigFile(tsconfigPath, &core.CompilerOptions{}, nil, host, nil)
+	configParseResult, diagnostics := tsoptions.GetParsedCommandLineOfConfigFile(resolvedConfigFileName, &core.CompilerOptions{}, nil, tsoptions.NewDefaultParseConfigHost(host.FS()), nil)
 
 	if len(diagnostics) > 0 {
 		internalDiags := make([]diagnostic.Internal, len(diagnostics))
@@ -41,7 +42,7 @@ func CreateProgram(singleThreaded bool, fs vfs.FS, cwd string, tsconfigPath stri
 			loc := d.Loc()
 			filePath := resolvedConfigPath
 			if d.File() != nil && d.File().FileName() != "" {
-				filePath = d.File().FileName()
+				filePath = d.File().FileName().AsString()
 			}
 			internalDiags[i] = diagnostic.Internal{
 				Range:       core.NewTextRange(loc.Pos(), loc.End()),
@@ -60,7 +61,7 @@ func CreateProgram(singleThreaded bool, fs vfs.FS, cwd string, tsconfigPath stri
 			loc := e.Loc()
 			filePath := resolvedConfigPath
 			if e.File() != nil && e.File().FileName() != "" {
-				filePath = e.File().FileName()
+				filePath = e.File().FileName().AsString()
 			}
 			internalDiags[i] = diagnostic.Internal{
 				Range:       core.NewTextRange(loc.Pos(), loc.End()),
@@ -97,7 +98,7 @@ func CreateProgram(singleThreaded bool, fs vfs.FS, cwd string, tsconfigPath stri
 			loc := d.Loc()
 			filePath := resolvedConfigPath
 			if d.File() != nil && d.File().FileName() != "" {
-				filePath = d.File().FileName()
+				filePath = d.File().FileName().AsString()
 			}
 			internalDiags[i] = diagnostic.Internal{
 				Range:       core.NewTextRange(loc.Pos(), loc.End()),
@@ -118,26 +119,26 @@ func CreateProgram(singleThreaded bool, fs vfs.FS, cwd string, tsconfigPath stri
 }
 
 func CreateInferredProjectProgram(singleThreaded bool, fs vfs.FS, cwd string, host compiler.CompilerHost, fileNames []string) (*compiler.Program, []diagnostic.Internal, error) {
+	cwdPath := tspath.RootedDirectoryPathFromAbsolute(cwd)
+	rootedFileNames := make([]tspath.RootedFilePath, len(fileNames))
+	for i, fileName := range fileNames {
+		rootedFileNames[i] = tspath.ToRootedFilePath(fileName, cwdPath)
+	}
 	opts := compiler.ProgramOptions{
-		Config: &tsoptions.ParsedCommandLine{
-			ParsedConfig: &tsoptions.ParsedOptions{
-				CompilerOptions: &core.CompilerOptions{
-					AllowJs:                    core.TSTrue,
-					Module:                     core.ModuleKindESNext,
-					ModuleResolution:           core.ModuleResolutionKindBundler,
-					Target:                     core.ScriptTargetES2022,
-					Jsx:                        core.JsxEmitReactJSX,
-					AllowImportingTsExtensions: core.TSTrue,
-					StrictNullChecks:           core.TSTrue,
-					StrictFunctionTypes:        core.TSTrue,
-					SourceMap:                  core.TSTrue,
-					ESModuleInterop:            core.TSTrue,
-					AllowNonTsExtensions:       core.TSTrue,
-					ResolveJsonModule:          core.TSTrue,
-				},
-				FileNames: fileNames,
-			},
-		},
+		Config: tsoptions.NewParsedCommandLine(&core.CompilerOptions{
+			AllowJs:                    core.TSTrue,
+			Module:                     core.ModuleKindESNext,
+			ModuleResolution:           core.ModuleResolutionKindBundler,
+			Target:                     core.ScriptTargetES2022,
+			Jsx:                        core.JsxEmitReactJSX,
+			AllowImportingTsExtensions: core.TSTrue,
+			StrictNullChecks:           core.TSTrue,
+			StrictFunctionTypes:        core.TSTrue,
+			SourceMap:                  core.TSTrue,
+			ESModuleInterop:            core.TSTrue,
+			AllowNonTsExtensions:       core.TSTrue,
+			ResolveJsonModule:          core.TSTrue,
+		}, rootedFileNames, nil, cwdPath, fs.CaseSensitivity()),
 		SingleThreaded: core.TSTrue,
 		Host:           host,
 	}

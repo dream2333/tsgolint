@@ -15,17 +15,20 @@ import (
 type TsConfigResolver struct {
 	fs                        vfs.FS
 	currentDirectory          string
+	currentDirectoryPath      tspath.RootedDirectoryPath
 	configFileRegistryBuilder *project.ConfigFileRegistryBuilder
 }
 
 func NewTsConfigResolver(fs vfs.FS, currentDirectory string) *TsConfigResolver {
+	currentDirectoryPath := tspath.RootedDirectoryPathFromAbsolute(currentDirectory)
 	return &TsConfigResolver{
-		fs:               fs,
-		currentDirectory: currentDirectory,
+		fs:                   fs,
+		currentDirectory:     currentDirectory,
+		currentDirectoryPath: currentDirectoryPath,
 		configFileRegistryBuilder: project.NewConfigFileRegistryBuilder(
 			false,
-			project.TsGoLintNewSnapshotFSBuilder(fs, currentDirectory), &project.ConfigFileRegistry{}, project.NewExtendedConfigCache(), 0, &project.SessionOptions{
-				CurrentDirectory: currentDirectory,
+			project.TsGoLintNewSnapshotFSBuilder(fs), func(tspath.PathKey) bool { return false }, &project.ConfigFileRegistry{}, project.NewExtendedConfigCache(), 0, &project.SessionOptions{
+				CurrentDirectory: currentDirectoryPath,
 			}, "", nil),
 	}
 }
@@ -33,13 +36,13 @@ func NewTsConfigResolver(fs vfs.FS, currentDirectory string) *TsConfigResolver {
 // Finds the tsconfig.json that governs the given file
 // Reference: `findOrCreateDefaultConfiguredProjectForOpenScriptInfo` typescript/tsc/internal/project/projectcollectionbuilder.go:629-671
 func (r *TsConfigResolver) FindTsconfigForFile(filePath string, skipSearchInDirectoryOfFile bool) (configPath string, found bool) {
-	configFileName := r.configFileRegistryBuilder.ComputeConfigFileName(filePath, skipSearchInDirectoryOfFile, nil)
+	configFileName := r.configFileRegistryBuilder.ComputeConfigFileName(r.toFileName(filePath), skipSearchInDirectoryOfFile, nil).AsString()
 
 	if configFileName == "" {
 		return "", false
 	}
 
-	normalizedPath := tspath.ToPath(filePath, r.currentDirectory, r.fs.UseCaseSensitiveFileNames())
+	normalizedPath := r.toPath(filePath)
 
 	// Search through the config and its references
 	// This corresponds to findOrCreateDefaultConfiguredProjectWorker
@@ -65,12 +68,12 @@ type searchNode struct {
 // Reference: `findOrCreateDefaultConfiguredProjectWorker`: typescript/tsc/internal/project/projectcollectionbuilder.go:480-627
 func (r *TsConfigResolver) findConfigWithReferences(
 	fileName string,
-	path tspath.Path,
+	path tspath.PathKey,
 	configFileName string,
 	visited *collections.SyncSet[searchNode],
 	fallback *configSearchResult,
 ) configSearchResult {
-	var configs collections.SyncMap[tspath.Path, *tsoptions.ParsedCommandLine]
+	var configs collections.SyncMap[tspath.PathKey, *tsoptions.ParsedCommandLine]
 	if visited == nil {
 		visited = &collections.SyncSet[searchNode]{}
 	}
@@ -80,8 +83,8 @@ func (r *TsConfigResolver) findConfigWithReferences(
 		func(node searchNode) []searchNode {
 			if config, ok := configs.Load(r.toPath(node.configFileName)); ok && len(config.ProjectReferences()) > 0 {
 				references := config.ResolvedProjectReferencePaths()
-				return Map(references, func(configFileName string) searchNode {
-					return searchNode{configFileName: configFileName}
+				return Map(references, func(configFileName tspath.RootedFilePath) searchNode {
+					return searchNode{configFileName: configFileName.AsString()}
 				})
 			}
 			return nil
@@ -90,7 +93,7 @@ func (r *TsConfigResolver) findConfigWithReferences(
 			configFilePath := r.toPath(node.configFileName)
 
 			config := r.configFileRegistryBuilder.FindOrAcquireConfigForFile(
-				node.configFileName, configFilePath, path, project.ProjectLoadKindCreate, nil,
+				r.toFileName(node.configFileName), configFilePath, path, project.ProjectLoadKindCreate, nil,
 			)
 			if config == nil {
 				return false, false
@@ -103,12 +106,12 @@ func (r *TsConfigResolver) findConfigWithReferences(
 				// For composite projects, we can get an early negative result.
 				// !!! what about declaration files in node_modules? wouldn't it be better to
 				//     check project inclusion if the project is already loaded?
-				if !config.PossiblyMatchesFileName(fileName) {
+				if !config.PossiblyMatchesFileName(r.toFileName(fileName)) {
 					return false, false
 				}
 			}
 
-			if _, ok := config.FileNamesByPath()[path]; ok {
+			if config.FilePaths().Has(path) {
 				return true, true
 			}
 
@@ -163,14 +166,14 @@ func (r *TsConfigResolver) findConfigWithReferences(
 	return configSearchResult{configFileName: ""}
 }
 
-func (r *TsConfigResolver) getAncestorConfigFileName(fileName string, path tspath.Path, nearestConfigFileName string) string {
-	ancestorConfigName := r.configFileRegistryBuilder.GetAncestorConfigFileName(fileName, path, nearestConfigFileName, nil)
+func (r *TsConfigResolver) getAncestorConfigFileName(fileName string, path tspath.PathKey, nearestConfigFileName string) string {
+	ancestorConfigName := r.configFileRegistryBuilder.GetAncestorConfigFileName(r.toFileName(fileName), path, r.toFileName(nearestConfigFileName), nil)
 	if ancestorConfigName != "" {
-		return ancestorConfigName
+		return ancestorConfigName.AsString()
 	}
 	// Intentionally pass the nearest tsconfig path so the ancestor search
 	// resumes from that config's parent directory rather than from the source file.
-	return r.configFileRegistryBuilder.ComputeConfigFileName(nearestConfigFileName, true, nil)
+	return r.configFileRegistryBuilder.ComputeConfigFileName(r.toFileName(nearestConfigFileName), true, nil).AsString()
 }
 
 type ResolutionResult struct {
@@ -204,17 +207,17 @@ func (r *TsConfigResolver) work(in chan resolutionTask, out chan<- ResolutionRes
 func (r *TsConfigResolver) resolveDirectory(files []string, in chan<- resolutionTask, out chan<- ResolutionResult, pending *sync.WaitGroup) {
 	// ComputeConfigFileName only inspects the containing directory and its
 	// ancestors. Files in one directory therefore share this lookup.
-	configName := r.configFileRegistryBuilder.ComputeConfigFileName(files[0], false, nil)
-	var includedFiles map[tspath.Path]string
+	configName := r.configFileRegistryBuilder.ComputeConfigFileName(r.toFileName(files[0]), false, nil).AsString()
+	var includedFiles interface{ Has(tspath.PathKey) bool }
 	if configName != "" {
 		configPath := r.toPath(configName)
 		config := r.configFileRegistryBuilder.FindOrAcquireConfigForFile(
-			configName, configPath, r.toPath(files[0]), project.ProjectLoadKindCreate, nil,
+			r.toFileName(configName), configPath, r.toPath(files[0]), project.ProjectLoadKindCreate, nil,
 		)
 		if config != nil {
 			// A file included by the nearest config cannot be claimed by a
 			// reference or ancestor. Only misses need the full search.
-			includedFiles = config.FileNamesByPath()
+			includedFiles = config.FilePaths()
 		}
 	}
 	var misses []string
@@ -224,8 +227,7 @@ func (r *TsConfigResolver) resolveDirectory(files []string, in chan<- resolution
 			continue
 		}
 
-		fileNormalized := tspath.ToPath(file, r.currentDirectory, r.fs.UseCaseSensitiveFileNames())
-		if _, ok := includedFiles[fileNormalized]; ok {
+		if includedFiles != nil && includedFiles.Has(r.toPath(file)) {
 			out <- ResolutionResult{file: file, config: configName}
 			continue
 		}
@@ -286,8 +288,12 @@ func (r *TsConfigResolver) FindTsConfigParallel(fileNames []string) map[string]s
 }
 
 // Reference: `toPath`: typescript/tsc/internal/project/projectcollectionbuilder.go:687-689
-func (b *TsConfigResolver) toPath(fileName string) tspath.Path {
-	return tspath.ToPath(fileName, b.currentDirectory, b.fs.UseCaseSensitiveFileNames())
+func (b *TsConfigResolver) toPath(fileName string) tspath.PathKey {
+	return b.fs.CaseSensitivity().PathKey(b.toFileName(fileName).AsPath())
+}
+
+func (b *TsConfigResolver) toFileName(fileName string) tspath.RootedFilePath {
+	return tspath.ToRootedFilePath(fileName, b.currentDirectoryPath)
 }
 
 func (r *TsConfigResolver) FS() vfs.FS {
