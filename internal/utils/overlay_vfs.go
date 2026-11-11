@@ -2,6 +2,7 @@ package utils
 
 import (
 	"io/fs"
+	"slices"
 	"strings"
 	"time"
 
@@ -52,6 +53,10 @@ func (vfs *OverlayVFS) DirectoryExists(path tspath.RootedDirectoryPath) bool {
 
 func (vfs *OverlayVFS) GetAccessibleEntries(path tspath.RootedDirectoryPath) (result vfs.Entries) {
 	result = vfs.fs.GetAccessibleEntries(path)
+	// The underlying FS may cache and share these slices (cachedvfs does);
+	// clip them so the appends below never write into a shared backing array.
+	result.Files = slices.Clip(result.Files)
+	result.Directories = slices.Clip(result.Directories)
 
 	normalizedPath := path.AsString()
 	if !strings.HasSuffix(normalizedPath, "/") {
