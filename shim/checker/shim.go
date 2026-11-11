@@ -64,6 +64,8 @@ const CachedTypeKindPromisedTypeOfPromise = checker.CachedTypeKindPromisedTypeOf
 const CachedTypeKindRegularObjectLiteral = checker.CachedTypeKindRegularObjectLiteral
 const CachedTypeKindRestrictiveInstantiation = checker.CachedTypeKindRestrictiveInstantiation
 const CachedTypeKindRestrictiveTypeParameter = checker.CachedTypeKindRestrictiveTypeParameter
+const CachedTypeKindSimplifiedConditionalTypeForReading = checker.CachedTypeKindSimplifiedConditionalTypeForReading
+const CachedTypeKindSimplifiedConditionalTypeForWriting = checker.CachedTypeKindSimplifiedConditionalTypeForWriting
 const CachedTypeKindStringIndexType = checker.CachedTypeKindStringIndexType
 const CachedTypeKindSyntheticType = checker.CachedTypeKindSyntheticType
 const CachedTypeKindWidened = checker.CachedTypeKindWidened
@@ -186,7 +188,8 @@ type extra_Checker struct {
   SignatureCount uint32
   TotalInstantiationCount uint32
   instantiationCount uint32
-  instantiationDepth uint32
+  memberLayoutCount uint32
+  instantiationStack []*checker.Type
   conditionalConstraintDepth uint32
   inlineLevel int
   serializationLevel int
@@ -227,7 +230,7 @@ type extra_Checker struct {
   subtypeReductionCache map[checker.CacheHashKey][]*checker.Type
   cachedTypes map[checker.CachedTypeKey]*checker.Type
   cachedSignatures map[checker.CachedSignatureKey]*checker.Signature
-  undefinedProperties map[string]*ast.Symbol
+  undefinedProperties map[*ast.Symbol]*ast.Symbol
   narrowedTypes map[checker.NarrowedTypeKey]*checker.Type
   assignmentReducedTypes map[checker.AssignmentReducedKey]*checker.Type
   discriminatedContextualTypes map[checker.DiscriminatedContextualTypeKey]*checker.Type
@@ -236,8 +239,10 @@ type extra_Checker struct {
   reverseMappedCache map[checker.ReverseMappedTypeKey]*checker.Type
   reverseHomomorphicMappedCache map[checker.ReverseMappedTypeKey]*checker.Type
   iterationTypesCache map[checker.IterationTypesKey]checker.IterationTypes
+  memberLayoutCache map[checker.CacheHashKey]*checker.MemberLayout
   markerTypes collections.Set[*checker.Type]
   resolvingExplicitTypeOfSymbol collections.Set[*ast.Symbol]
+  constructorOrFunctionChecked collections.Set[*ast.Symbol]
   undefinedSymbol *ast.Symbol
   argumentsSymbol *ast.Symbol
   requireSymbol *ast.Symbol
@@ -258,14 +263,38 @@ type extra_Checker struct {
   diagnostics ast.DiagnosticsCollection
   suggestionDiagnostics ast.DiagnosticsCollection
   symbolArena core.Arena[ast.Symbol]
+  symbolWithDataArena core.Arena[ast.SymbolWithData]
+  symbolExtraArena ast.SymbolExtraArena
   signatureArena core.Arena[checker.Signature]
+  signatureExtraArena core.Arena[struct{}]
   indexInfoArena core.Arena[checker.IndexInfo]
-  mergedSymbols map[*ast.Symbol]*ast.Symbol
+  literalTypeArena core.Arena[checker.LiteralType]
+  objectTypeArena core.Arena[checker.ObjectType]
+  typeReferenceArena core.Arena[checker.TypeReference]
+  interfaceTypeArena core.Arena[checker.InterfaceType]
+  mappedTypeArena core.Arena[checker.MappedType]
+  unionTypeArena core.Arena[checker.UnionType]
+  intersectionTypeArena core.Arena[checker.IntersectionType]
+  typeParameterArena core.Arena[checker.TypeParameter]
+  indexedAccessTypeArena core.Arena[checker.IndexedAccessType]
+  conditionalTypeArena core.Arena[checker.ConditionalType]
+  typeListArena core.Arena[*checker.Type]
+  outerTypeParameterListArena core.Arena[[]*checker.Type]
+  valueSymbolExtraArena core.Arena[struct{}]
+  structuredTypeExtraArena core.Arena[struct{}]
+  lazyStateArena core.Arena[checker.LazyState]
+  memberLayoutArena core.Arena[checker.MemberLayout]
+  layoutMembers ast.SymbolTable
+  layoutBaseIndices []int32
+  freeTypeSets *extra_temporaryTypeSet
+  freePropertyCounts *extra_temporaryPropertyCounts
+  mergedSymbols struct{gen ast.SymbolIdGenerator; links core.LinkStore[uint64, *ast.Symbol]; pages core.PagedLinkStore[*ast.Symbol]}
+  mergedExportsChecked collections.Set[*ast.Symbol]
   factory ast.NodeFactory
   nodeLinks core.LinkStore[*ast.Node, checker.NodeLinks]
-  signatureLinks core.LinkStore[*ast.Node, checker.SignatureLinks]
-  symbolNodeLinks struct{store core.PagedLinkStore[checker.SymbolNodeLinks]}
-  typeNodeLinks core.LinkStore[*ast.Node, checker.TypeNodeLinks]
+  signatureLinks struct{gen ast.NodeIdGenerator; links core.LinkStore[uint64, checker.SignatureLinks]; pages core.PagedLinkStore[checker.SignatureLinks]}
+  symbolNodeLinks struct{gen ast.NodeIdGenerator; links core.LinkStore[uint64, checker.SymbolNodeLinks]; pages core.PagedLinkStore[checker.SymbolNodeLinks]}
+  typeNodeLinks struct{gen ast.NodeIdGenerator; links core.LinkStore[uint64, checker.TypeNodeLinks]; pages core.PagedLinkStore[checker.TypeNodeLinks]}
   enumMemberLinks core.LinkStore[*ast.Node, checker.EnumMemberLinks]
   assertionLinks core.LinkStore[*ast.Node, checker.AssertionLinks]
   arrayLiteralLinks core.LinkStore[*ast.Node, checker.ArrayLiteralLinks]
@@ -273,7 +302,7 @@ type extra_Checker struct {
   jsxElementLinks core.LinkStore[*ast.Node, checker.JsxElementLinks]
   computedNameLinks core.LinkStore[*ast.Node, checker.ComputedNameNodeLinks]
   symbolReferenceLinks core.LinkStore[*ast.Symbol, checker.SymbolReferenceLinks]
-  valueSymbolLinks struct{store core.PagedLinkStore[*checker.ValueSymbolLinks]; arena core.Arena[checker.ValueSymbolLinks]}
+  valueSymbolLinks struct{gen ast.SymbolIdGenerator; links core.LinkStore[uint64, checker.ValueSymbolLinks]; pages core.PagedLinkStore[checker.ValueSymbolLinks]}
   mappedSymbolLinks core.LinkStore[*ast.Symbol, checker.MappedSymbolLinks]
   deferredSymbolLinks core.LinkStore[*ast.Symbol, checker.DeferredSymbolLinks]
   aliasSymbolLinks core.LinkStore[*ast.Symbol, checker.AliasSymbolLinks]
@@ -288,6 +317,7 @@ type extra_Checker struct {
   ReverseMappedSymbolLinks core.LinkStore[*ast.Symbol, checker.ReverseMappedSymbolLinks]
   markedAssignmentSymbolLinks core.LinkStore[*ast.Symbol, checker.MarkedAssignmentSymbolLinks]
   symbolContainerLinks core.LinkStore[*ast.Symbol, checker.ContainingSymbolLinks]
+  externalModuleContainers *extra_externalModuleContainerIndex
   sourceFileLinks core.LinkStore[*ast.SourceFile, checker.SourceFileLinks]
   regExpScanner *scanner.Scanner
   patternForType map[*checker.Type]*ast.Node
@@ -361,6 +391,8 @@ type extra_Checker struct {
   anyBaseTypeIndexInfo *checker.IndexInfo
   patternAmbientModules []*ast.PatternAmbientModule
   patternAmbientModuleAugmentations ast.SymbolTable
+  patternAmbientModuleAugmentationTargets ast.SymbolTable
+  moduleImportAttributesTypes map[*ast.Symbol]*checker.Type
   globalObjectType *checker.Type
   globalFunctionType *checker.Type
   globalCallableFunctionType *checker.Type
@@ -384,6 +416,7 @@ type extra_Checker struct {
   typeResolutions []checker.TypeResolution
   resolutionStart int
   varianceStack []checker.VarianceStackEntry
+  callResolutionStack []*ast.Node
   apparentArgumentCount *int
   lastGetCombinedNodeFlagsNode *ast.Node
   lastGetCombinedNodeFlagsResult ast.NodeFlags
@@ -408,6 +441,7 @@ type extra_Checker struct {
   awaitedTypeStack []*checker.Type
   reverseMappedSourceStack []*checker.Type
   reverseMappedTargetStack []*checker.Type
+  resolvingObjectTypeStack []checker.ResolvingObjectType
   reverseExpandingFlags checker.ExpandingFlags
   freeRelater *checker.Relater
   subtypeRelation *checker.Relation
@@ -437,6 +471,7 @@ type extra_Checker struct {
   getGlobalPromiseType func() *checker.Type
   getGlobalPromiseTypeChecked func() *checker.Type
   getGlobalPromiseLikeType func() *checker.Type
+  getGlobalAbstractModuleSourceType func() *checker.Type
   getGlobalPromiseConstructorSymbol func() *ast.Symbol
   getGlobalPromiseConstructorSymbolOrNil func() *ast.Symbol
   getGlobalOmitSymbol func() *ast.Symbol
@@ -475,15 +510,14 @@ type extra_Checker struct {
   isStringIndexSignatureOnlyType func(*checker.Type) bool
   markNodeAssignments func(*ast.Node) bool
   compareTypesAssignable checker.TypeComparer
-  emitResolver *checker.EmitResolver
-  emitResolverOnce sync.Once
+  emitResolverLinks checker.EmitResolverLinks
   _jsxNamespace string
   _jsxFactoryEntity *ast.Node
   skipDirectInferenceNodes collections.Set[*ast.Node]
   ctx context.Context
   packagesMap map[string]bool
   activeMappers []*checker.TypeMapper
-  activeTypeMappersCaches []map[checker.CacheHashKey]*checker.Type
+  activeTypeMappersCaches []struct{}
   ambientModulesOnce sync.Once
   ambientModules []*ast.Symbol
   withinUnreachableCode bool
@@ -493,6 +527,21 @@ type extra_Checker struct {
   typeToStringNodebuilder *checker.NodeBuilder
   mu sync.Mutex
   tracer *checker.Tracer
+}
+type extra_temporaryTypeSet struct {
+  orderedSet struct{valuesByKey map[*checker.Type]struct{}; values []*checker.Type}
+  inline [16]*checker.Type
+  next *extra_temporaryTypeSet
+}
+type extra_temporaryPropertyCounts struct {
+  entries []struct{}
+  indices map[string]int32
+  next *extra_temporaryPropertyCounts
+}
+type extra_externalModuleContainerIndex struct {
+  complete bool
+  containersByTarget map[*ast.Symbol][]*ast.Symbol
+  moduleOrder map[*ast.Symbol]int
 }
 func Checker_numberType(v *checker.Checker) *checker.Type {
   return ((*extra_Checker)(unsafe.Pointer(v))).numberType
@@ -580,6 +629,7 @@ const ElementFlagsRest = checker.ElementFlagsRest
 const ElementFlagsVariable = checker.ElementFlagsVariable
 const ElementFlagsVariadic = checker.ElementFlagsVariadic
 type EmitResolver = checker.EmitResolver
+type EmitResolverLinks = checker.EmitResolverLinks
 type EnumLiteralKey = checker.EnumLiteralKey
 type EnumMemberLinks = checker.EnumMemberLinks
 type EnumRelationKey = checker.EnumRelationKey
@@ -637,6 +687,8 @@ func FormatTypeFlags(flags checker.TypeFlags) []string
 type FunctionTypeMapper = checker.FunctionTypeMapper
 //go:linkname GetDeclarationModifierFlagsFromSymbol github.com/microsoft/TypeScript/tsc/internal/checker.GetDeclarationModifierFlagsFromSymbol
 func GetDeclarationModifierFlagsFromSymbol(s *ast.Symbol) ast.ModifierFlags
+//go:linkname GetEndElementCount github.com/microsoft/TypeScript/tsc/internal/checker.GetEndElementCount
+func GetEndElementCount(t *checker.TupleType, flags checker.ElementFlags) int
 //go:linkname GetPropertyNameFromType github.com/microsoft/TypeScript/tsc/internal/checker.GetPropertyNameFromType
 func GetPropertyNameFromType(t *checker.Type) string
 //go:linkname GetResolvedSignatureForSignatureHelp github.com/microsoft/TypeScript/tsc/internal/checker.GetResolvedSignatureForSignatureHelp
@@ -652,6 +704,9 @@ const IndexFlagsNoReducibleCheck = checker.IndexFlagsNoReducibleCheck
 const IndexFlagsNone = checker.IndexFlagsNone
 const IndexFlagsStringsOnly = checker.IndexFlagsStringsOnly
 type IndexInfo = checker.IndexInfo
+type IndexKind = checker.IndexKind
+const IndexKindNumber = checker.IndexKindNumber
+const IndexKindString = checker.IndexKindString
 type IndexType = checker.IndexType
 type IndexedAccessType = checker.IndexedAccessType
 type extra_IndexedAccessType struct {
@@ -670,6 +725,7 @@ type InferenceContext = checker.InferenceContext
 type InferenceContextInfo = checker.InferenceContextInfo
 type InferenceFlags = checker.InferenceFlags
 const InferenceFlagsAnyDefault = checker.InferenceFlagsAnyDefault
+const InferenceFlagsNoConstraintChecks = checker.InferenceFlagsNoConstraintChecks
 const InferenceFlagsNoDefault = checker.InferenceFlagsNoDefault
 const InferenceFlagsNone = checker.InferenceFlagsNone
 const InferenceFlagsSkippedGenericFunction = checker.InferenceFlagsSkippedGenericFunction
@@ -732,6 +788,8 @@ const IntrinsicTypeKindNoInfer = checker.IntrinsicTypeKindNoInfer
 const IntrinsicTypeKindUncapitalize = checker.IntrinsicTypeKindUncapitalize
 const IntrinsicTypeKindUnknown = checker.IntrinsicTypeKindUnknown
 const IntrinsicTypeKindUppercase = checker.IntrinsicTypeKindUppercase
+//go:linkname IsDistributedTypeParameter github.com/microsoft/TypeScript/tsc/internal/checker.IsDistributedTypeParameter
+func IsDistributedTypeParameter(t *checker.Type) bool
 //go:linkname IsExternalModuleSymbol github.com/microsoft/TypeScript/tsc/internal/checker.IsExternalModuleSymbol
 func IsExternalModuleSymbol(moduleSymbol *ast.Symbol) bool
 //go:linkname IsInTypeQuery github.com/microsoft/TypeScript/tsc/internal/checker.IsInTypeQuery
@@ -742,6 +800,8 @@ func IsKnownSymbol(symbol *ast.Symbol) bool
 func IsPrivateIdentifierSymbol(symbol *ast.Symbol) bool
 //go:linkname IsTupleType github.com/microsoft/TypeScript/tsc/internal/checker.IsTupleType
 func IsTupleType(t *checker.Type) bool
+//go:linkname IsTupleTypeTarget github.com/microsoft/TypeScript/tsc/internal/checker.IsTupleTypeTarget
+func IsTupleTypeTarget(t *checker.Type) bool
 //go:linkname IsTypeAny github.com/microsoft/TypeScript/tsc/internal/checker.IsTypeAny
 func IsTypeAny(t *checker.Type) bool
 //go:linkname IsTypeUsableAsPropertyName github.com/microsoft/TypeScript/tsc/internal/checker.IsTypeUsableAsPropertyName
@@ -788,6 +848,7 @@ const JsxReferenceKindMixed = checker.JsxReferenceKindMixed
 var LanguageFeatureMinimumTarget = checker.LanguageFeatureMinimumTarget
 type LanguageFeatureMinimumTargetMap = checker.LanguageFeatureMinimumTargetMap
 type LateBoundLinks = checker.LateBoundLinks
+type LazyState = checker.LazyState
 type LiteralType = checker.LiteralType
 const MAX_REVERSE_MAPPED_NESTING_INSPECTION_DEPTH = checker.MAX_REVERSE_MAPPED_NESTING_INSPECTION_DEPTH
 type MappedSymbolLinks = checker.MappedSymbolLinks
@@ -822,6 +883,7 @@ const MappedTypeNameTypeKindFiltering = checker.MappedTypeNameTypeKindFiltering
 const MappedTypeNameTypeKindNone = checker.MappedTypeNameTypeKindNone
 const MappedTypeNameTypeKindRemapping = checker.MappedTypeNameTypeKindRemapping
 type MarkedAssignmentSymbolLinks = checker.MarkedAssignmentSymbolLinks
+type MemberLayout = checker.MemberLayout
 type MemberOverrideStatus = checker.MemberOverrideStatus
 const MemberOverrideStatusHasInvalidOverride = checker.MemberOverrideStatusHasInvalidOverride
 const MemberOverrideStatusNeedsOverride = checker.MemberOverrideStatusNeedsOverride
@@ -918,7 +980,6 @@ const ObjectFlagsRequiresWidening = checker.ObjectFlagsRequiresWidening
 const ObjectFlagsReverseMapped = checker.ObjectFlagsReverseMapped
 const ObjectFlagsSingleSignatureType = checker.ObjectFlagsSingleSignatureType
 const ObjectFlagsTuple = checker.ObjectFlagsTuple
-const ObjectFlagsUnresolvedMembers = checker.ObjectFlagsUnresolvedMembers
 type ObjectLiteralDiscriminator = checker.ObjectLiteralDiscriminator
 type ObjectType = checker.ObjectType
 type ParseFlags = checker.ParseFlags
@@ -953,6 +1014,7 @@ const ReferenceHintProperty = checker.ReferenceHintProperty
 const ReferenceHintUnspecified = checker.ReferenceHintUnspecified
 type Relater = checker.Relater
 type Relation = checker.Relation
+type RelationCacheSizes = checker.RelationCacheSizes
 type RelationComparisonResult = checker.RelationComparisonResult
 const RelationComparisonResultComplexityOverflow = checker.RelationComparisonResultComplexityOverflow
 const RelationComparisonResultFailed = checker.RelationComparisonResultFailed
@@ -962,6 +1024,7 @@ const RelationComparisonResultReportsMask = checker.RelationComparisonResultRepo
 const RelationComparisonResultReportsUnmeasurable = checker.RelationComparisonResultReportsUnmeasurable
 const RelationComparisonResultReportsUnreliable = checker.RelationComparisonResultReportsUnreliable
 const RelationComparisonResultSucceeded = checker.RelationComparisonResultSucceeded
+type ResolvingObjectType = checker.ResolvingObjectType
 type ReverseMappedSymbolLinks = checker.ReverseMappedSymbolLinks
 type ReverseMappedType = checker.ReverseMappedType
 type ReverseMappedTypeKey = checker.ReverseMappedTypeKey
@@ -974,13 +1037,16 @@ type extra_Signature struct {
   minArgumentCount int32
   resolvedMinArgumentCount int32
   declaration *ast.Node
-  typeParameters []*checker.Type
   parameters []*ast.Symbol
-  thisParameter *ast.Symbol
   resolvedReturnType *checker.Type
-  resolvedTypePredicate *checker.TypePredicate
   target *checker.Signature
   mapper *checker.TypeMapper
+  extra *extra_signatureExtra
+}
+type extra_signatureExtra struct {
+  typeParameters []*checker.Type
+  thisParameter *ast.Symbol
+  resolvedTypePredicate *checker.TypePredicate
   isolatedSignatureType *checker.Type
   composite *checker.CompositeSignature
 }
@@ -989,9 +1055,6 @@ func Signature_parameters(v *checker.Signature) []*ast.Symbol {
 }
 func Signature_declaration(v *checker.Signature) *ast.Node {
   return ((*extra_Signature)(unsafe.Pointer(v))).declaration
-}
-func Signature_resolvedTypePredicate(v *checker.Signature) *checker.TypePredicate {
-  return ((*extra_Signature)(unsafe.Pointer(v))).resolvedTypePredicate
 }
 type SignatureCheckMode = checker.SignatureCheckMode
 const SignatureCheckModeBivariantCallback = checker.SignatureCheckModeBivariantCallback
@@ -1083,10 +1146,10 @@ type extra_Type struct {
   flags checker.TypeFlags
   objectFlags checker.ObjectFlags
   id checker.TypeId
+  kind uint8
   symbol *ast.Symbol
   alias *checker.TypeAlias
   checker *checker.Checker
-  data checker.TypeData
 }
 func Type_alias(v *checker.Type) *checker.TypeAlias {
   return ((*extra_Type)(unsafe.Pointer(v))).alias
@@ -1104,7 +1167,6 @@ type TypeAlias = checker.TypeAlias
 type TypeAliasLinks = checker.TypeAliasLinks
 type TypeBase = checker.TypeBase
 type TypeComparer = checker.TypeComparer
-type TypeData = checker.TypeData
 type TypeDiscriminator = checker.TypeDiscriminator
 type TypeFacts = checker.TypeFacts
 const TypeFactsAll = checker.TypeFactsAll
@@ -1287,9 +1349,13 @@ const TypeFormatFlagsWriteTypeArgumentsOfSignature = checker.TypeFormatFlagsWrit
 type TypeId = checker.TypeId
 type TypeMapper = checker.TypeMapper
 type TypeMapperBase = checker.TypeMapperBase
-type TypeMapperData = checker.TypeMapperData
 type TypeMapperKind = checker.TypeMapperKind
 const TypeMapperKindArray = checker.TypeMapperKindArray
+const TypeMapperKindArrayToSingle = checker.TypeMapperKindArrayToSingle
+const TypeMapperKindComposite = checker.TypeMapperKindComposite
+const TypeMapperKindDeferred = checker.TypeMapperKindDeferred
+const TypeMapperKindFunction = checker.TypeMapperKindFunction
+const TypeMapperKindInference = checker.TypeMapperKindInference
 const TypeMapperKindMerged = checker.TypeMapperKindMerged
 const TypeMapperKindSimple = checker.TypeMapperKindSimple
 const TypeMapperKindUnknown = checker.TypeMapperKindUnknown

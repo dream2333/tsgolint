@@ -8,6 +8,7 @@ import (
 	"maps"
 	"os"
 	"path"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -18,7 +19,81 @@ import (
 	"golang.org/x/tools/go/packages"
 )
 
+var unexportedElementType = regexp.MustCompile(`\b[a-z]+\.[a-z][A-Za-z0-9_]*(\[[^\[\]]*\])?`)
+
 const tsgoInternalPrefix = "github.com/microsoft/TypeScript/tsc/internal/"
+
+// writeMirrorStruct writes a struct named extra_<name> that mirrors the layout of
+// s, followed by mirrors of the unexported structs its pointer fields refer to.
+// emitted records the mirrors already written.
+func writeMirrorStruct(b *strings.Builder, name string, s *types.Struct, qualifier types.Qualifier, emitted map[string]bool) {
+	// Unexported structs can refer back to themselves or to each other.
+	if emitted[name] {
+		return
+	}
+	emitted[name] = true
+	b.WriteString("type extra_")
+	b.WriteString(name)
+	b.WriteString(" struct {")
+
+	dependencies := [](struct {
+		string
+		*types.Struct
+	}){}
+	for field := range s.Fields() {
+		b.WriteString("\n  ")
+		if !field.Embedded() {
+			b.WriteString(field.Name())
+			b.WriteByte(' ')
+		}
+
+		if named, ok := field.Type().(*types.Named); ok && !named.Obj().Exported() {
+			if field.Embedded() {
+				// An embedded unexported type is mirrored by its underlying
+				// type, which needs a field name to be valid Go.
+				b.WriteString(field.Name())
+				b.WriteByte(' ')
+			}
+			// A mirror cannot refer to an unexported named type from the
+			// source package. Its instantiated underlying type has the same
+			// layout and only needs to be structurally equivalent here.
+			b.WriteString(types.TypeString(named.Underlying(), qualifier))
+			continue
+		}
+
+		ptrType, ok := field.Type().(*types.Pointer)
+		if ok {
+			named, ok := ptrType.Elem().(*types.Named)
+			if ok && !named.Obj().Exported() {
+				strct, ok := named.Underlying().(*types.Struct)
+				if ok {
+					n := named.Obj().Name()
+					dependencies = append(dependencies, struct {
+						string
+						*types.Struct
+					}{n, strct})
+					b.WriteString("*extra_")
+					b.WriteString(n)
+					continue
+				}
+			}
+		}
+
+		fieldType := types.TypeString(field.Type(), qualifier)
+		// TODO: move to extra-shim.json
+		fieldType = strings.ReplaceAll(fieldType, "checker.thisAssignmentDeclarationKind", "int32")
+		fieldType = strings.ReplaceAll(fieldType, "checker.symbolTableID", "uint64")
+		// Unexported element types of slices and arenas do not affect the
+		// layout of the field that holds them, so any placeholder will do.
+		fieldType = unexportedElementType.ReplaceAllString(fieldType, "struct{}")
+		b.WriteString(fieldType)
+	}
+	b.WriteString("\n}\n")
+
+	for _, dep := range dependencies {
+		writeMirrorStruct(b, dep.string, dep.Struct, qualifier, emitted)
+	}
+}
 
 func signatureHasUnexportedType(t types.Signature) bool {
 	if params := t.Params(); params != nil {
@@ -288,68 +363,12 @@ func main() {
 					}
 					mirrorStructName := "extra_" + name
 
-					var emitExtraStruct func(name string, s *types.Struct)
-					emitExtraStruct = func(name string, s *types.Struct) {
-						shimBuilder.WriteString("type extra_")
-						shimBuilder.WriteString(name)
-						shimBuilder.WriteString(" struct {")
-
-						dependencies := [](struct {
-							string
-							*types.Struct
-						}){}
-						for field := range s.Fields() {
-							shimBuilder.WriteString("\n  ")
-							if !field.Embedded() {
-								shimBuilder.WriteString(field.Name())
-								shimBuilder.WriteByte(' ')
-							}
-
-							if named, ok := field.Type().(*types.Named); ok && !named.Obj().Exported() {
-								// A mirror cannot refer to an unexported named type from the
-								// source package. Its instantiated underlying type has the same
-								// layout and only needs to be structurally equivalent here.
-								shimBuilder.WriteString(types.TypeString(named.Underlying(), qualifierOnlyPackageName))
-								continue
-							}
-
-							ptrType, ok := field.Type().(*types.Pointer)
-							if ok {
-								named, ok := ptrType.Elem().(*types.Named)
-								if ok && !named.Obj().Exported() {
-									strct, ok := named.Underlying().(*types.Struct)
-									if ok {
-										n := named.Obj().Name()
-										dependencies = append(dependencies, struct {
-											string
-											*types.Struct
-										}{n, strct})
-										shimBuilder.WriteString("extra_")
-										shimBuilder.WriteString(n)
-										continue
-									}
-								}
-							}
-
-							fieldType := types.TypeString(field.Type(), qualifierOnlyPackageName)
-							// TODO: move to extra-shim.json
-							fieldType = strings.ReplaceAll(fieldType, "checker.thisAssignmentDeclarationKind", "int32")
-							fieldType = strings.ReplaceAll(fieldType, "checker.symbolTableID", "uint64")
-							shimBuilder.WriteString(fieldType)
-						}
-						shimBuilder.WriteString("\n}\n")
-
-						for _, dep := range dependencies {
-							emitExtraStruct(dep.string, dep.Struct)
-						}
-					}
-
 					strct, ok := named.Underlying().(*types.Struct)
 					if !ok {
 						log.Fatalf("expected %v to be struct", name)
 					}
 
-					emitExtraStruct(name, strct)
+					writeMirrorStruct(&shimBuilder, name, strct, qualifierOnlyPackageName, map[string]bool{})
 
 					mappedFieldTypes := make(map[string]*types.Var, strct.NumFields())
 					for field := range strct.Fields() {

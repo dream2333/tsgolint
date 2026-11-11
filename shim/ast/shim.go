@@ -62,6 +62,8 @@ type BindingPatternNode = ast.BindingPatternNode
 type BitwiseOperator = ast.BitwiseOperator
 type BitwiseOperatorOrHigher = ast.BitwiseOperatorOrHigher
 type Block = ast.Block
+const BlockIdOffset = ast.BlockIdOffset
+const BlockIdSize = ast.BlockIdSize
 type BlockNode = ast.BlockNode
 type BlockOrExpression = ast.BlockOrExpression
 type BodyBase = ast.BodyBase
@@ -87,10 +89,12 @@ func CanHaveModifiers(node *ast.Node) bool
 func CanHaveSymbol(node *ast.Node) bool
 type CaseBlock = ast.CaseBlock
 type CaseBlockNode = ast.CaseBlockNode
+type CaseClause = ast.CaseClause
+type CaseClauseNode = ast.CaseClauseNode
 type CaseClausesList = ast.CaseClausesList
 type CaseKeyword = ast.CaseKeyword
 type CaseOrDefaultClause = ast.CaseOrDefaultClause
-type CaseOrDefaultClauseNode = ast.CaseOrDefaultClauseNode
+type CaseOrDefaultClauseBase = ast.CaseOrDefaultClauseBase
 type CatchClause = ast.CatchClause
 type CatchClauseNode = ast.CatchClauseNode
 type CheckFlags = ast.CheckFlags
@@ -98,6 +102,9 @@ const CheckFlagsContainsPrivate = ast.CheckFlagsContainsPrivate
 const CheckFlagsContainsProtected = ast.CheckFlagsContainsProtected
 const CheckFlagsContainsPublic = ast.CheckFlagsContainsPublic
 const CheckFlagsContainsStatic = ast.CheckFlagsContainsStatic
+const CheckFlagsContainsWritePrivate = ast.CheckFlagsContainsWritePrivate
+const CheckFlagsContainsWriteProtected = ast.CheckFlagsContainsWriteProtected
+const CheckFlagsContainsWritePublic = ast.CheckFlagsContainsWritePublic
 const CheckFlagsDeferredType = ast.CheckFlagsDeferredType
 const CheckFlagsHasLiteralType = ast.CheckFlagsHasLiteralType
 const CheckFlagsHasNeverType = ast.CheckFlagsHasNeverType
@@ -186,6 +193,8 @@ type DeclarationName = ast.DeclarationName
 type DeclareKeyword = ast.DeclareKeyword
 type Decorator = ast.Decorator
 type DecoratorNode = ast.DecoratorNode
+type DefaultClause = ast.DefaultClause
+type DefaultClauseNode = ast.DefaultClauseNode
 type DefaultKeyword = ast.DefaultKeyword
 type DeleteExpression = ast.DeleteExpression
 type DeleteExpressionNode = ast.DeleteExpressionNode
@@ -368,11 +377,11 @@ func GetElementOrPropertyAccessName(node *ast.Node) *ast.Node
 //go:linkname GetElementsOfBindingOrAssignmentPattern github.com/microsoft/TypeScript/tsc/internal/ast.GetElementsOfBindingOrAssignmentPattern
 func GetElementsOfBindingOrAssignmentPattern(name *ast.Node) []*ast.Node
 //go:linkname GetEmitModuleFormatOfFileWorker github.com/microsoft/TypeScript/tsc/internal/ast.GetEmitModuleFormatOfFileWorker
-func GetEmitModuleFormatOfFileWorker(fileName string, options *core.CompilerOptions, sourceFileMetaData ast.SourceFileMetaData) core.ModuleKind
+func GetEmitModuleFormatOfFileWorker(fileName tspath.RootedFilePath, options *core.CompilerOptions, sourceFileMetaData ast.SourceFileMetaData) core.ModuleKind
 //go:linkname GetEnclosingBlockScopeContainer github.com/microsoft/TypeScript/tsc/internal/ast.GetEnclosingBlockScopeContainer
 func GetEnclosingBlockScopeContainer(node *ast.Node) *ast.Node
 //go:linkname GetExports github.com/microsoft/TypeScript/tsc/internal/ast.GetExports
-func GetExports(symbol *ast.Symbol) ast.SymbolTable
+func GetExports(symbol *ast.Symbol, arena *ast.SymbolExtraArena) ast.SymbolTable
 //go:linkname GetExpressionPrecedence github.com/microsoft/TypeScript/tsc/internal/ast.GetExpressionPrecedence
 func GetExpressionPrecedence(expression *ast.Expression) ast.OperatorPrecedence
 //go:linkname GetExtendsHeritageClauseElements github.com/microsoft/TypeScript/tsc/internal/ast.GetExtendsHeritageClauseElements
@@ -380,7 +389,7 @@ func GetExtendsHeritageClauseElements(node *ast.Node) []*ast.HeritageClauseEleme
 //go:linkname GetExternalModuleImportEqualsDeclarationExpression github.com/microsoft/TypeScript/tsc/internal/ast.GetExternalModuleImportEqualsDeclarationExpression
 func GetExternalModuleImportEqualsDeclarationExpression(node *ast.Node) *ast.Node
 //go:linkname GetExternalModuleIndicatorOptions github.com/microsoft/TypeScript/tsc/internal/ast.GetExternalModuleIndicatorOptions
-func GetExternalModuleIndicatorOptions(fileName string, options *core.CompilerOptions, metadata ast.SourceFileMetaData) ast.ExternalModuleIndicatorOptions
+func GetExternalModuleIndicatorOptions(fileName tspath.RootedFilePath, options *core.CompilerOptions, metadata ast.SourceFileMetaData) ast.ExternalModuleIndicatorOptions
 //go:linkname GetExternalModuleName github.com/microsoft/TypeScript/tsc/internal/ast.GetExternalModuleName
 func GetExternalModuleName(node *ast.Node) *ast.Expression
 //go:linkname GetFirstConstructorWithBody github.com/microsoft/TypeScript/tsc/internal/ast.GetFirstConstructorWithBody
@@ -402,9 +411,9 @@ func GetImmediatelyInvokedFunctionExpression(fn *ast.Node) *ast.Node
 //go:linkname GetImplementsHeritageClauseElements github.com/microsoft/TypeScript/tsc/internal/ast.GetImplementsHeritageClauseElements
 func GetImplementsHeritageClauseElements(node *ast.Node) []*ast.HeritageClauseElement
 //go:linkname GetImpliedNodeFormatForEmitWorker github.com/microsoft/TypeScript/tsc/internal/ast.GetImpliedNodeFormatForEmitWorker
-func GetImpliedNodeFormatForEmitWorker(fileName string, emitModuleKind core.ModuleKind, sourceFileMetaData ast.SourceFileMetaData) core.ResolutionMode
+func GetImpliedNodeFormatForEmitWorker(fileName tspath.RootedFilePath, emitModuleKind core.ModuleKind, sourceFileMetaData ast.SourceFileMetaData) core.ResolutionMode
 //go:linkname GetImpliedNodeFormatForFile github.com/microsoft/TypeScript/tsc/internal/ast.GetImpliedNodeFormatForFile
-func GetImpliedNodeFormatForFile(path string, packageJsonType string) core.ModuleKind
+func GetImpliedNodeFormatForFile(fileName tspath.RootedFilePath, packageJsonType string) core.ModuleKind
 //go:linkname GetImportAttributes github.com/microsoft/TypeScript/tsc/internal/ast.GetImportAttributes
 func GetImportAttributes(node *ast.Node) *ast.Node
 //go:linkname GetInitializerOfBinaryExpression github.com/microsoft/TypeScript/tsc/internal/ast.GetInitializerOfBinaryExpression
@@ -430,7 +439,7 @@ func GetLocals(container *ast.Node) ast.SymbolTable
 //go:linkname GetMeaningFromDeclaration github.com/microsoft/TypeScript/tsc/internal/ast.GetMeaningFromDeclaration
 func GetMeaningFromDeclaration(node *ast.Node) ast.SemanticMeaning
 //go:linkname GetMembers github.com/microsoft/TypeScript/tsc/internal/ast.GetMembers
-func GetMembers(symbol *ast.Symbol) ast.SymbolTable
+func GetMembers(symbol *ast.Symbol, arena *ast.SymbolExtraArena) ast.SymbolTable
 //go:linkname GetModuleInstanceState github.com/microsoft/TypeScript/tsc/internal/ast.GetModuleInstanceState
 func GetModuleInstanceState(node *ast.Node) ast.ModuleInstanceState
 //go:linkname GetModuleSpecifierOfBareOrAccessedRequire github.com/microsoft/TypeScript/tsc/internal/ast.GetModuleSpecifierOfBareOrAccessedRequire
@@ -475,6 +484,8 @@ func GetSemanticJsxChildren(children []*ast.JsxChild) []*ast.JsxChild
 func GetSourceFileOfModule(module *ast.Symbol) *ast.SourceFile
 //go:linkname GetSourceFileOfNode github.com/microsoft/TypeScript/tsc/internal/ast.GetSourceFileOfNode
 func GetSourceFileOfNode(node *ast.Node) *ast.SourceFile
+//go:linkname GetSourceFileOfSymbol github.com/microsoft/TypeScript/tsc/internal/ast.GetSourceFileOfSymbol
+func GetSourceFileOfSymbol(symbol *ast.Symbol) *ast.SourceFile
 //go:linkname GetSuperContainer github.com/microsoft/TypeScript/tsc/internal/ast.GetSuperContainer
 func GetSuperContainer(node *ast.Node, stopOnFunctions bool) *ast.Node
 //go:linkname GetSymbolId github.com/microsoft/TypeScript/tsc/internal/ast.GetSymbolId
@@ -506,6 +517,8 @@ func HasDecorators(node *ast.Node) bool
 //go:linkname HasDynamicName github.com/microsoft/TypeScript/tsc/internal/ast.HasDynamicName
 func HasDynamicName(declaration *ast.Node) bool
 type HasFileName = ast.HasFileName
+//go:linkname HasImportAttributes github.com/microsoft/TypeScript/tsc/internal/ast.HasImportAttributes
+func HasImportAttributes(node *ast.Node) bool
 //go:linkname HasInferredType github.com/microsoft/TypeScript/tsc/internal/ast.HasInferredType
 func HasInferredType(node *ast.Node) bool
 //go:linkname HasInitializer github.com/microsoft/TypeScript/tsc/internal/ast.HasInitializer
@@ -912,6 +925,8 @@ func IsImportClause(node *ast.Node) bool
 func IsImportDeclaration(node *ast.Node) bool
 //go:linkname IsImportDeclarationOrJSImportDeclaration github.com/microsoft/TypeScript/tsc/internal/ast.IsImportDeclarationOrJSImportDeclaration
 func IsImportDeclarationOrJSImportDeclaration(node *ast.Node) bool
+//go:linkname IsImportDeferMetaProperty github.com/microsoft/TypeScript/tsc/internal/ast.IsImportDeferMetaProperty
+func IsImportDeferMetaProperty(node *ast.Node) bool
 //go:linkname IsImportEqualsDeclaration github.com/microsoft/TypeScript/tsc/internal/ast.IsImportEqualsDeclaration
 func IsImportEqualsDeclaration(node *ast.Node) bool
 //go:linkname IsImportMeta github.com/microsoft/TypeScript/tsc/internal/ast.IsImportMeta
@@ -922,8 +937,12 @@ func IsImportNode(node *ast.Node) bool
 func IsImportOrExportSpecifier(node *ast.Node) bool
 //go:linkname IsImportOrImportEqualsDeclaration github.com/microsoft/TypeScript/tsc/internal/ast.IsImportOrImportEqualsDeclaration
 func IsImportOrImportEqualsDeclaration(node *ast.Node) bool
+//go:linkname IsImportPhaseMetaProperty github.com/microsoft/TypeScript/tsc/internal/ast.IsImportPhaseMetaProperty
+func IsImportPhaseMetaProperty(node *ast.Node) bool
 //go:linkname IsImportPhaseModifierKind github.com/microsoft/TypeScript/tsc/internal/ast.IsImportPhaseModifierKind
 func IsImportPhaseModifierKind(kind ast.Kind) bool
+//go:linkname IsImportSourceMetaProperty github.com/microsoft/TypeScript/tsc/internal/ast.IsImportSourceMetaProperty
+func IsImportSourceMetaProperty(node *ast.Node) bool
 //go:linkname IsImportSpecifier github.com/microsoft/TypeScript/tsc/internal/ast.IsImportSpecifier
 func IsImportSpecifier(node *ast.Node) bool
 //go:linkname IsImportTypeNode github.com/microsoft/TypeScript/tsc/internal/ast.IsImportTypeNode
@@ -1272,8 +1291,6 @@ func IsParenthesizedExpression(node *ast.Node) bool
 func IsParenthesizedTypeNode(node *ast.Node) bool
 //go:linkname IsParseTreeNode github.com/microsoft/TypeScript/tsc/internal/ast.IsParseTreeNode
 func IsParseTreeNode(node *ast.Node) bool
-//go:linkname IsPartOfExclusivelyTypeOnlyImportOrExportDeclaration github.com/microsoft/TypeScript/tsc/internal/ast.IsPartOfExclusivelyTypeOnlyImportOrExportDeclaration
-func IsPartOfExclusivelyTypeOnlyImportOrExportDeclaration(node *ast.Node) bool
 //go:linkname IsPartOfParameterDeclaration github.com/microsoft/TypeScript/tsc/internal/ast.IsPartOfParameterDeclaration
 func IsPartOfParameterDeclaration(node *ast.Node) bool
 //go:linkname IsPartOfTypeNode github.com/microsoft/TypeScript/tsc/internal/ast.IsPartOfTypeNode
@@ -1372,6 +1389,10 @@ func IsSignedNumericLiteral(node *ast.Node) bool
 func IsSourceFile(node *ast.Node) bool
 //go:linkname IsSourceFileJS github.com/microsoft/TypeScript/tsc/internal/ast.IsSourceFileJS
 func IsSourceFileJS(file *ast.SourceFile) bool
+//go:linkname IsSourcePhaseImport github.com/microsoft/TypeScript/tsc/internal/ast.IsSourcePhaseImport
+func IsSourcePhaseImport(node *ast.Node) bool
+//go:linkname IsSourcePhaseImportCall github.com/microsoft/TypeScript/tsc/internal/ast.IsSourcePhaseImportCall
+func IsSourcePhaseImportCall(node *ast.Node) bool
 //go:linkname IsSpreadAssignment github.com/microsoft/TypeScript/tsc/internal/ast.IsSpreadAssignment
 func IsSpreadAssignment(node *ast.Node) bool
 //go:linkname IsSpreadElement github.com/microsoft/TypeScript/tsc/internal/ast.IsSpreadElement
@@ -1386,6 +1407,8 @@ func IsStatic(node *ast.Node) bool
 func IsStringLiteral(node *ast.Node) bool
 //go:linkname IsStringLiteralLike github.com/microsoft/TypeScript/tsc/internal/ast.IsStringLiteralLike
 func IsStringLiteralLike(node *ast.Node) bool
+//go:linkname IsStringLiteralLikeType github.com/microsoft/TypeScript/tsc/internal/ast.IsStringLiteralLikeType
+func IsStringLiteralLikeType(node *ast.Node) bool
 //go:linkname IsStringOrNumericLiteralLike github.com/microsoft/TypeScript/tsc/internal/ast.IsStringOrNumericLiteralLike
 func IsStringOrNumericLiteralLike(node *ast.Node) bool
 //go:linkname IsStringTextContainingNode github.com/microsoft/TypeScript/tsc/internal/ast.IsStringTextContainingNode
@@ -1992,6 +2015,7 @@ const KindSingleLineCommentTrivia = ast.KindSingleLineCommentTrivia
 const KindSlashEqualsToken = ast.KindSlashEqualsToken
 const KindSlashToken = ast.KindSlashToken
 const KindSourceFile = ast.KindSourceFile
+const KindSourceKeyword = ast.KindSourceKeyword
 const KindSpreadAssignment = ast.KindSpreadAssignment
 const KindSpreadElement = ast.KindSpreadElement
 const KindStaticKeyword = ast.KindStaticKeyword
@@ -2176,6 +2200,8 @@ func NewDiagnostic(file *ast.SourceFile, loc core.TextRange, message *diagnostic
 func NewDiagnosticChain(chain *ast.Diagnostic, message *diagnostics.Message, args ...any) *ast.Diagnostic
 //go:linkname NewDiagnosticFromSerialized github.com/microsoft/TypeScript/tsc/internal/ast.NewDiagnosticFromSerialized
 func NewDiagnosticFromSerialized(file *ast.SourceFile, loc core.TextRange, code int32, category diagnostics.Category, messageKey diagnostics.Key, messageArgs []string, messageChain []*ast.Diagnostic, relatedInformation []*ast.Diagnostic, reportsUnnecessary bool, reportsDeprecated bool, skippedOnNoEmit bool) *ast.Diagnostic
+//go:linkname NewDiagnosticFromText github.com/microsoft/TypeScript/tsc/internal/ast.NewDiagnosticFromText
+func NewDiagnosticFromText(file *ast.SourceFile, loc core.TextRange, code int32, category diagnostics.Category, text string, messageChain []*ast.Diagnostic, relatedInformation []*ast.Diagnostic, reportsUnnecessary bool, reportsDeprecated bool) *ast.Diagnostic
 type NewExpression = ast.NewExpression
 type NewExpressionNode = ast.NewExpressionNode
 //go:linkname NewExternalDiagnostic github.com/microsoft/TypeScript/tsc/internal/ast.NewExternalDiagnostic
@@ -2185,11 +2211,17 @@ func NewFlowReduceLabelData(target *ast.FlowLabel, antecedents *ast.FlowList) *a
 //go:linkname NewFlowSwitchClauseData github.com/microsoft/TypeScript/tsc/internal/ast.NewFlowSwitchClauseData
 func NewFlowSwitchClauseData(switchStatement *ast.Node, clauseStart int, clauseEnd int) *ast.Node
 //go:linkname NewHasFileName github.com/microsoft/TypeScript/tsc/internal/ast.NewHasFileName
-func NewHasFileName(fileName string, path tspath.Path) ast.HasFileName
+func NewHasFileName(fileName tspath.RootedFilePath, path tspath.PathKey) ast.HasFileName
 //go:linkname NewNodeFactory github.com/microsoft/TypeScript/tsc/internal/ast.NewNodeFactory
 func NewNodeFactory(hooks ast.NodeFactoryHooks) *ast.NodeFactory
 //go:linkname NewNodeVisitor github.com/microsoft/TypeScript/tsc/internal/ast.NewNodeVisitor
 func NewNodeVisitor(visit func(node *ast.Node) *ast.Node, factory *ast.NodeFactory, hooks ast.NodeVisitorHooks) *ast.NodeVisitor
+//go:linkname NewSymbol github.com/microsoft/TypeScript/tsc/internal/ast.NewSymbol
+func NewSymbol() *ast.Symbol
+//go:linkname NewSymbolTable github.com/microsoft/TypeScript/tsc/internal/ast.NewSymbolTable
+func NewSymbolTable() ast.SymbolTable
+//go:linkname NewSymbolTableWithCapacity github.com/microsoft/TypeScript/tsc/internal/ast.NewSymbolTableWithCapacity
+func NewSymbolTableWithCapacity(capacity int) ast.SymbolTable
 type NoSubstitutionTemplateLiteral = ast.NoSubstitutionTemplateLiteral
 type NoSubstitutionTemplateLiteralNode = ast.NoSubstitutionTemplateLiteralNode
 type Node = ast.Node
@@ -2250,6 +2282,7 @@ func NodeHasKind(node *ast.Node, kind ast.Kind) bool
 //go:linkname NodeHasName github.com/microsoft/TypeScript/tsc/internal/ast.NodeHasName
 func NodeHasName(statement *ast.Node, id *ast.Node) bool
 type NodeId = ast.NodeId
+type NodeIdGenerator = ast.NodeIdGenerator
 //go:linkname NodeIsDecorated github.com/microsoft/TypeScript/tsc/internal/ast.NodeIsDecorated
 func NodeIsDecorated(useLegacyDecorators bool, node *ast.Node, parent *ast.Node, grandparent *ast.Node) bool
 //go:linkname NodeIsMissing github.com/microsoft/TypeScript/tsc/internal/ast.NodeIsMissing
@@ -2435,7 +2468,7 @@ type ShiftOperatorOrHigher = ast.ShiftOperatorOrHigher
 type ShorthandPropertyAssignment = ast.ShorthandPropertyAssignment
 type ShorthandPropertyAssignmentNode = ast.ShorthandPropertyAssignmentNode
 //go:linkname ShouldTransformImportCall github.com/microsoft/TypeScript/tsc/internal/ast.ShouldTransformImportCall
-func ShouldTransformImportCall(fileName string, options *core.CompilerOptions, impliedNodeFormatForEmit core.ModuleKind) bool
+func ShouldTransformImportCall(fileName tspath.RootedFilePath, options *core.CompilerOptions, impliedNodeFormatForEmit core.ModuleKind) bool
 type SignatureDeclaration = ast.SignatureDeclaration
 //go:linkname SkipOuterExpressions github.com/microsoft/TypeScript/tsc/internal/ast.SkipOuterExpressions
 func SkipOuterExpressions(node *ast.Expression, kinds ast.OuterExpressionKinds) *ast.Expression
@@ -2525,6 +2558,7 @@ type SuperExpression = ast.SuperExpression
 type SwitchStatement = ast.SwitchStatement
 type SwitchStatementNode = ast.SwitchStatementNode
 type Symbol = ast.Symbol
+type SymbolExtraArena = ast.SymbolExtraArena
 type SymbolFlags = ast.SymbolFlags
 const SymbolFlagsAccessor = ast.SymbolFlagsAccessor
 const SymbolFlagsAccessorExcludes = ast.SymbolFlagsAccessorExcludes
@@ -2565,6 +2599,7 @@ const SymbolFlagsMethodExcludes = ast.SymbolFlagsMethodExcludes
 const SymbolFlagsModule = ast.SymbolFlagsModule
 const SymbolFlagsModuleExports = ast.SymbolFlagsModuleExports
 const SymbolFlagsModuleMember = ast.SymbolFlagsModuleMember
+const SymbolFlagsNameProxy = ast.SymbolFlagsNameProxy
 const SymbolFlagsNamespace = ast.SymbolFlagsNamespace
 const SymbolFlagsNamespaceModule = ast.SymbolFlagsNamespaceModule
 const SymbolFlagsNamespaceModuleExcludes = ast.SymbolFlagsNamespaceModuleExcludes
@@ -2594,9 +2629,14 @@ const SymbolFlagsValueModule = ast.SymbolFlagsValueModule
 const SymbolFlagsValueModuleExcludes = ast.SymbolFlagsValueModuleExcludes
 const SymbolFlagsVariable = ast.SymbolFlagsVariable
 type SymbolId = ast.SymbolId
+type SymbolIdGenerator = ast.SymbolIdGenerator
+type SymbolMap = ast.SymbolMap
 //go:linkname SymbolName github.com/microsoft/TypeScript/tsc/internal/ast.SymbolName
 func SymbolName(symbol *ast.Symbol) string
 type SymbolTable = ast.SymbolTable
+//go:linkname SymbolTableOf github.com/microsoft/TypeScript/tsc/internal/ast.SymbolTableOf
+func SymbolTableOf(name string, symbol *ast.Symbol) ast.SymbolTable
+type SymbolWithData = ast.SymbolWithData
 type SyntaxList = ast.SyntaxList
 type SyntaxListNode = ast.SyntaxListNode
 type SyntheticExpression = ast.SyntheticExpression
@@ -2669,6 +2709,8 @@ type TokenNode = ast.TokenNode
 type TokenSyntaxKind = ast.TokenSyntaxKind
 type TriviaSyntaxKind = ast.TriviaSyntaxKind
 type TrueLiteral = ast.TrueLiteral
+//go:linkname TryGetAmbientModuleNameFromSymbolName github.com/microsoft/TypeScript/tsc/internal/ast.TryGetAmbientModuleNameFromSymbolName
+func TryGetAmbientModuleNameFromSymbolName(s string) (string, bool)
 //go:linkname TryGetClassExtendingExpressionWithTypeArguments github.com/microsoft/TypeScript/tsc/internal/ast.TryGetClassExtendingExpressionWithTypeArguments
 func TryGetClassExtendingExpressionWithTypeArguments(node *ast.Node) *ast.ClassLikeDeclaration
 //go:linkname TryGetClassImplementingOrExtendingHeritageClauseElement github.com/microsoft/TypeScript/tsc/internal/ast.TryGetClassImplementingOrExtendingHeritageClauseElement

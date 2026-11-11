@@ -7,10 +7,11 @@ import "context"
 import "github.com/microsoft/TypeScript/tsc/internal/ast"
 import "github.com/microsoft/TypeScript/tsc/internal/contentmapper"
 import "github.com/microsoft/TypeScript/tsc/internal/locale"
+import "github.com/microsoft/TypeScript/tsc/internal/tspath"
 import _ "unsafe"
 
 //go:linkname CheckSupplementalFileNameCollisions github.com/microsoft/TypeScript/tsc/internal/contentmapper.CheckSupplementalFileNameCollisions
-func CheckSupplementalFileNameCollisions(files contentmapper.SourceFiles, fileExists func(string) bool) error
+func CheckSupplementalFileNameCollisions(files contentmapper.SourceFiles, fileExists func(tspath.RootedFilePath) bool) error
 type CloseProjectParams = contentmapper.CloseProjectParams
 type Definition = contentmapper.Definition
 type Diagnostic = contentmapper.Diagnostic
@@ -26,6 +27,8 @@ const DiagnosticDirectivePolicyExpect = contentmapper.DiagnosticDirectivePolicyE
 const DiagnosticDirectivePolicyIgnore = contentmapper.DiagnosticDirectivePolicyIgnore
 type DiagnosticDirectives = contentmapper.DiagnosticDirectives
 var ErrProjectUnavailable = contentmapper.ErrProjectUnavailable
+//go:linkname HasReservedSourceExtension github.com/microsoft/TypeScript/tsc/internal/contentmapper.HasReservedSourceExtension
+func HasReservedSourceExtension(extension string) bool
 type Host = contentmapper.Host
 type HostOptions = contentmapper.HostOptions
 type InitializeError = contentmapper.InitializeError
@@ -36,7 +39,6 @@ const InitializeErrorKindNoResponse = contentmapper.InitializeErrorKindNoRespons
 const InitializeErrorKindPositionEncoding = contentmapper.InitializeErrorKindPositionEncoding
 const InitializeErrorKindProcessExit = contentmapper.InitializeErrorKindProcessExit
 const InitializeErrorKindProcessStart = contentmapper.InitializeErrorKindProcessStart
-const InitializeErrorKindProtocolVersion = contentmapper.InitializeErrorKindProtocolVersion
 const InitializeErrorKindRequest = contentmapper.InitializeErrorKindRequest
 const InitializeErrorKindReservedDiagnosticSource = contentmapper.InitializeErrorKindReservedDiagnosticSource
 type InitializeParams = contentmapper.InitializeParams
@@ -44,6 +46,8 @@ type InitializeResult = contentmapper.InitializeResult
 type InvalidVirtualExtensionError = contentmapper.InvalidVirtualExtensionError
 //go:linkname IsSupportedVirtualExtension github.com/microsoft/TypeScript/tsc/internal/contentmapper.IsSupportedVirtualExtension
 func IsSupportedVirtualExtension(extension string) bool
+//go:linkname IsValidExtension github.com/microsoft/TypeScript/tsc/internal/contentmapper.IsValidExtension
+func IsValidExtension(extension string) bool
 type Logger = contentmapper.Logger
 type Manifest = contentmapper.Manifest
 type MappedDiagnosticDirective = contentmapper.MappedDiagnosticDirective
@@ -79,7 +83,6 @@ const ProjectErrorKindNonAbsoluteWatchedFile = contentmapper.ProjectErrorKindNon
 const ProjectErrorKindUnexpectedConfigIdentity = contentmapper.ProjectErrorKindUnexpectedConfigIdentity
 const ProjectErrorKindUnexpectedWatchedFiles = contentmapper.ProjectErrorKindUnexpectedWatchedFiles
 type ProjectSpec = contentmapper.ProjectSpec
-const ProtocolVersion = contentmapper.ProtocolVersion
 type Request = contentmapper.Request
 type Result = contentmapper.Result
 type SourceFiles = contentmapper.SourceFiles
