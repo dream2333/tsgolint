@@ -25,15 +25,33 @@ var mirrorSizes = []types.Sizes{
 	types.SizesFor("gc", "386"),
 }
 
+// emptyStruct stands in for an unexported type that does not affect layout.
+// Mirrors are only ever used through pointer casts and never allocated, so the
+// placeholder costs nothing at run time.
 var emptyStruct = types.NewStruct(nil, nil)
 
 // mirrorFieldType returns a type with the same size and alignment as t that a
 // shim package can spell, i.e. one that names no unexported type.
 //
+// Shims read private fields by casting a pointer to the real struct into a
+// pointer to its extra_ mirror, so the mirror has to repeat every field of the
+// real struct, including the ones no accessor reads, to keep the offsets of
+// the ones that are read. Some of those fields have types the shim package is
+// not allowed to name, for example
+//
+//	signatureExtraArena core.Arena[signatureExtra]
+//
 // An unexported type behind a pointer, slice, map or channel cannot change the
-// layout of the field that holds it, so it becomes struct{}. Anywhere else it
-// is replaced by its underlying type. Type arguments are tried as struct{}
-// first, because whether they matter depends on the generic type.
+// layout of the field that holds it, so it becomes struct{}; the field above
+// is mirrored as core.Arena[struct{}]. Anywhere else the type is stored inline
+// and its size matters, so it is replaced by its underlying type.
+//
+// Whether a type argument is stored inline depends on the generic type, which
+// is not visible from here. Type arguments are therefore tried as struct{}
+// first, and by their underlying type if that changes the layout.
+//
+// A mirror with the wrong layout still compiles and then reads the wrong
+// memory, so an error is returned when neither attempt matches.
 func mirrorFieldType(t types.Type) (types.Type, error) {
 	for _, opaqueArgs := range []bool{true, false} {
 		m := rewriteUnexported(t, false, opaqueArgs)
@@ -53,6 +71,9 @@ func sameLayout(a types.Type, b types.Type) bool {
 	return true
 }
 
+// rewriteUnexported replaces the unexported named types in t. indirect reports
+// whether t sits behind a pointer, slice, map or channel, where a placeholder
+// is enough. opaqueArgs treats type arguments as if they were indirect.
 func rewriteUnexported(t types.Type, indirect bool, opaqueArgs bool) types.Type {
 	switch t := t.(type) {
 	case *types.Named:
