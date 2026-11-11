@@ -197,7 +197,7 @@ Message: -1n is overridden by bigint in this union type.
 
 [TestNoRedundantTypeConstituentsRule/invalid-26 - 1]
 Diagnostic 1: literalOverridden (1:10 - 1:19)
-Message: 1n | -1n is overridden by bigint in this union type.
+Message: -1n | 1n is overridden by bigint in this union type.
    1 | type T = (-1n | 1n) | bigint;
      |          ~~~~~~~~~~
 ---
